@@ -1,0 +1,391 @@
+Intro
+0:00
+hello and welcome back to the channel
+0:01
+this is a another video on payload CMS
+0:05
+I've been working with payload CMS a lot
+0:07
+lately for some current projects and
+0:10
+just trying to push the limits of a
+0:11
+little bit and one of the things I did
+0:14
+was I created a chat app with payload as
+0:17
+the background so just a quick demo
+0:20
+before I go into the code so this is the
+Demo
+0:23
+chat application running in a Safari
+0:27
+browser and then here I have it running
+0:30
+Edge and let me send the message here
+0:33
+here is a
+0:34
+message
+0:36
+test one two
+0:40
+three and you can see the message showed
+0:42
+up here and
+0:44
+then here is a message
+0:48
+from edge
+0:55
+browser and see the message show up here
+0:57
+and then the last one is to actually
+0:58
+show a message being sent from payload
+1:02
+so let me get payload
+1:05
+open log to the back end and my messages
+1:09
+are in this message collection so here
+1:12
+you can see if I open up this last one
+1:15
+this is the message from the edge
+1:16
+browser but let's just go back and
+1:18
+create a new
+1:25
+one this is content
+1:32
+from the
+1:34
+CMS and we will save it and we see we
+1:38
+get it updated here in my Safari
+1:41
+browser and we get it updated here in my
+1:45
+edge browser okay so that's basically
+1:47
+the demo so here's the way I implemented
+1:51
+it so what I did was well first let's go
+1:54
+back in here and you can
+1:56
+see I just created a messages collection
+2:00
+that keeps track of all of them and then
+2:02
+also I needed users so there's a default
+2:05
+user collection that I have so those are
+2:06
+my two
+2:07
+collections but if we go back over here
+2:10
+and we look at the source code let's
+2:12
+look at my message collection we can see
+2:14
+that well I set the default access so
+2:16
+I'm not dealing with access now this is
+2:18
+just basically proof of concept and you
+2:20
+can see that we have here this endpoint
+2:26
+extension I'll touch on that in a second
+2:28
+I just want to touch on the fields so
+2:31
+nothing magical here I just have a
+2:33
+sender and a receiver which is
+2:34
+relationship to the user object the
+2:36
+content which is the text here and then
+2:38
+a timestamp for the message which
+2:41
+actually as I'm thinking about it I
+2:42
+don't really believe I need it because
+2:43
+it should generate an updated dat and
+2:45
+and created that on its own the
+2:48
+interesting stuff that's going on inside
+2:49
+of this ssse messages and ssse is for
+2:53
+server side let me make sure I get it
+Server Sent Events
+2:56
+server sent events and so this is built
+3:00
+into the browser and basically what it
+3:02
+says is dally web pages send requests
+3:05
+from the server to receive new data but
+3:07
+with server sent requests you can
+3:09
+basically connect through this um events
+3:13
+API so if I look at the server sent
+3:16
+events through this event Source API you
+3:18
+can connect to an endpoint and get
+3:20
+basically sent events to you from the
+3:22
+server so that's the trick that I used
+3:23
+here so if we go back so let's look at
+3:26
+my ssse messages endpoint
+3:32
+so now so first off this endpoint now
+3:34
+appears as a if I look at my application
+3:37
+my client you can
+3:39
+see I'm connecting on the same payload
+3:42
+API messages but I created a new SS end
+3:45
+point that's how I'm connecting my Event
+3:47
+Source so if I go to my SSC messages I
+3:50
+documented this heavily courtesy of
+3:53
+cursor to kind of make it very clear to
+3:55
+you so I have this endpoint it's a
+3:58
+git and I'll just kind of read through
+4:01
+it so what I'm doing is here is I'm
+4:02
+setting up a way to abort the connection
+4:04
+when it gets terminated I need to be
+4:06
+able to stream the content back to the
+4:10
+endpoint I get a timestamp at the last
+4:12
+time the data was sent so this I use
+4:14
+this to determine what new messages to
+4:16
+be sent and then I have this keep alive
+4:19
+which keeps the connection
+4:21
+alive and then what this poll messages
+4:24
+does really it just looks for unless the
+4:27
+signal has been aborted it just uses the
+4:29
+payload API to search the messages
+4:31
+collection and find any messages that
+4:33
+were added since the last time a message
+4:36
+was
+4:37
+added sorts it I limit it to only 10
+4:41
+probably can bump that like I said it's
+4:43
+just a demo and then I use the depth and
+4:45
+the populate so that I can get the email
+4:47
+address of the users that are associated
+4:50
+I so I get that returned in the
+4:53
+payload if there's messages to
+4:56
+send get the timestamp and then I use
+4:59
+this await WR or WR to send the messages
+5:02
+back through the stream that I
+5:06
+created to any of my
+5:10
+listeners and then down here this is on
+5:13
+a board I clean up my keep alive I clean
+5:15
+up my message interval I close my writer
+5:19
+and then this is the this is the
+5:20
+response that I send right now I just
+5:23
+have it accepting request from anyone
+5:26
+and that is basically what this SS
+5:30
+messages does so basically
+5:34
+anytime the poll the interval gets hit
+5:37
+through this interval pulls the
+5:40
+messages it writes them and it gets sent
+5:43
+back down to anybody that has reached
+5:47
+out to this endpoint
+5:50
+ssse and that's all we've had to do on
+5:53
+the server and then on the client let's
+5:56
+hop back to the
+5:58
+client this is just just a regular V
+6:01
+react application when the component
+6:03
+starts up we connect with our Event
+6:05
+Source and we get our Event Source and
+6:07
+then we're just
+6:08
+listening we create this event listener
+6:10
+to listen for messages that come down we
+6:13
+create this ping event we have our on
+6:17
+eror if we get an eror we just close the
+6:18
+thing also retries and reconnects
+6:21
+according to the documentation are
+6:22
+managed by this event Source
+6:25
+API and then what happens when we get a
+6:28
+message sent
+6:31
+since I'm sending kind of a connect
+6:34
+messages the only message that I want is
+6:37
+if there's no type Associated to it if
+6:39
+there's no type Associated to it then
+6:40
+that means it's data and then I get my
+6:43
+data this is me to make sure that I keep
+6:45
+my data clean I was running into this
+6:47
+error on Refresh on hot reloads it was
+6:49
+duplicating content so basically what I
+6:52
+do is I use this set to make sure I get
+6:55
+only unique messages but basically I
+6:57
+take the messages that I get in feel
+6:59
+throughout to get the unique ones and
+7:01
+then I add the new messages pend the old
+7:04
+messages return that
+7:06
+object for the set messages and then
+7:10
+down
+7:11
+here in set messages all I'm doing is
+7:13
+looping through them and rendering them
+7:16
+so anytime so just kind of to go back
+7:18
+through the flow again we connect our
+7:20
+endpoint with this event Source we add
+7:23
+our listener and we're listening for
+7:25
+messages back here inside this Handler
+7:29
+that was
+7:31
+created we have this poll message
+7:34
+running and anytime once the interval is
+7:38
+up it calls the poll message searches
+7:40
+the messages see if there's anything
+7:42
+that's been updated since the last time
+7:44
+we pushed any messages out if there is
+7:46
+we get them we save our last timestamp
+7:50
+we write to any any of the connections
+7:53
+so any of these Event Source connections
+7:56
+that are out there will then get this
+7:57
+message parses the data
+8:00
+sets the message and renders the UI and
+8:02
+that's pretty much it now I know there's
+8:04
+a bunch of other ways that this could be
+8:06
+done you could use websocket you could
+8:08
+do polling from the client's side but I
+8:10
+just thought this was an interesting way
+8:12
+a to Showcase what could be done with
+8:13
+payload and kind of the show a new API
+8:17
+that's built in a browser that I was una
+8:18
+aware of so full source code is provided
+8:21
+in the GitHub repo please make sure you
+8:23
+like subscribe let me know what you
+8:25
+think of this thanks and bye

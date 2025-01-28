@@ -1,0 +1,1077 @@
+// /app/(main)/layout.tsx
+
+import { NavigationSidebar } from "@/components/navigation/navigation-sidebar";
+
+const MainLayout = async ({ children }: { children: React.ReactNode }) => {
+  return (
+    <>
+      <div className="h-full">
+        <div className="h-full flex w-[72px] z-30 flex-col fixed inset-y-0">
+          <NavigationSidebar />
+        </div>
+        <main className="h-full w-full pl-[72px]">{children}</main>
+      </div>
+    </>
+  );
+};
+
+export default MainLayout;
+// /app/(main)/(routes)/servers/[serverId]/layout.tsx
+
+import { ServerSidebar } from "@/components/server/server-sidebar";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
+const ServerIdLayout = async ({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: { serverId: string };
+}) => {
+  const { serverId } = await params;
+
+  return (
+    <div className="h-full">
+      <div className="sidebar md:flex h-full w-60 z-20 flex-col fixed inset-y-0">
+        <ServerSidebar serverId={serverId} />
+      </div>
+      <main className="h-full md:pl-60 bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
+        {children}
+      </main>
+    </div>
+  );
+};
+
+export default ServerIdLayout;
+// /app/(main)/(routes)/servers/[serverId]/page.tsx
+
+import LoadingRedirect from "@/components/loading-redirect";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+
+type Params = Promise<{
+  serverId: string;
+}>;
+
+interface ServerIdPageProps {
+  params: Params;
+}
+
+const ServerIdPage = async ({ params }: ServerIdPageProps) => {
+  // Await params since it is now a promise
+  const { serverId } = await params;
+  const profile = await currentProfile();
+  if (!profile) {
+    const authInstance = await auth();
+    return authInstance.redirectToSignIn();
+  }
+  const server = await db.server.findUnique({
+    where: {
+      id: serverId,
+      members: {
+        some: {
+          profileId: profile.id,
+        },
+      },
+    },
+    include: {
+      channels: {
+        where: {
+          name: "general",
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+  });
+  const initialChannel = server?.channels[0];
+  if (initialChannel?.name !== "general") {
+    return null;
+  }
+  return (
+    <LoadingRedirect
+      serverId={serverId}
+      initialChannelId={initialChannel?.id}
+      shouldRedirect={initialChannel?.name === "general"}
+    />
+  );
+};
+
+export default ServerIdPage;
+// /app/(main)/(routes)/servers/[serverId]/channels/[channelId]/page.tsx
+
+import ChatHeader from "@/components/chat/chat-header";
+import { ChatInput } from "@/components/chat/chat-input";
+import { ChatMessages } from "@/components/chat/chat-messages";
+import { MediaRoom } from "@/components/media-room";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { ChannelType } from "@prisma/client";
+import { redirect } from "next/navigation";
+
+type Params = Promise<{ channelId: string; serverId: string }>;
+
+interface ChannelIdPageProps {
+  params: Params;
+}
+const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
+  // Await the params, since they are now a promise
+  const resolvedParams = await params;
+  const { channelId, serverId } = resolvedParams;
+  const profile = await currentProfile();
+  if (!profile) {
+    const authInstance = await auth();
+    return authInstance.redirectToSignIn();
+  }
+  const channel = await db.channel.findUnique({
+    where: {
+      id: channelId,
+    },
+  });
+  const member = await db.member.findFirst({
+    where: {
+      serverId: serverId,
+      profileId: profile.id,
+    },
+  });
+
+  if (!member || !channel) {
+    redirect("/");
+  }
+  return (
+    <div className="bg-white dark:bg-[#313338] flex flex-col h-full">
+      <ChatHeader
+        name={channel.name}
+        serverId={channel.serverId}
+        type="channel"
+      />
+      {channel.type === ChannelType.TEXT && (
+        <>
+          <ChatMessages
+            member={member}
+            name={channel.name}
+            chatId={channel.id}
+            type="channel"
+            apiUrl="/api/messages"
+            socketUrl="/api/socket/messages"
+            socketQuery={{
+              channelId: channel.id,
+              serverId: channel.serverId,
+            }}
+            paramKey="channelId"
+            paramValue={channel.id}
+          />
+          <ChatInput
+            apiUrl="/api/socket/messages"
+            name={channel.name}
+            type="channel"
+            query={{ channelId: channel.id, serverId: channel.serverId }}
+          />
+        </>
+      )}
+      {channel.type === ChannelType.AUDIO && (
+        <MediaRoom chatId={channel.id} video={false} audio={true} />
+      )}
+      {channel.type === ChannelType.VIDEO && (
+        <MediaRoom chatId={channel.id} video={true} audio={true} />
+      )}
+    </div>
+  );
+};
+export default ChannelIdPage;
+
+// /app/(main)/(routes)/servers/[serverId]/conversations/[memberId]/page.tsx
+
+import ChatHeader from "@/components/chat/chat-header";
+import { ChatInput } from "@/components/chat/chat-input";
+import { ChatMessages } from "@/components/chat/chat-messages";
+import { MediaRoom } from "@/components/media-room";
+import { getOrCreateConversation } from "@/lib/conversation";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
+const MemberIdPage = async ({
+  params,
+  searchParams,
+}: {
+  params: Promise<{
+    memberId: string;
+    serverId: string;
+  }>;
+  searchParams: Promise<{
+    video?: boolean;
+  }>;
+}) => {
+  const { memberId, serverId } = await params;
+  const { video } = await searchParams;
+  const profile = await currentProfile();
+  if (!profile) {
+    const authInstance = await auth();
+    return authInstance.redirectToSignIn();
+  }
+  const currentMember = await db.member.findFirst({
+    where: {
+      serverId,
+      profileId: profile.id,
+    },
+    include: {
+      profile: true,
+    },
+  });
+  if (!currentMember) {
+    return redirect("/");
+  }
+  const conversation = await getOrCreateConversation(
+    currentMember.id,
+    memberId
+  );
+  if (!conversation) {
+    return redirect(`/servers/${serverId}`);
+  }
+  const { memberOne, memberTwo } = conversation;
+  const otherMemberProfileId =
+    memberOne.profileId === profile.id ? memberTwo.profileId : memberOne.profileId;
+  const otherMember = await db.member.findFirst({
+    where: {
+      serverId,
+      profileId: otherMemberProfileId,
+    },
+    include: {
+      profile: true,
+    },
+  });
+  if (!currentMember) {
+    return redirect("/");
+  }
+  return (
+    <div className="bg-white dark:bg-[#313338] flex flex-col h-full">
+      <ChatHeader
+        imageUrl={otherMember?.profile.imageUrl || undefined}
+        name={otherMember?.profile.name || ""}
+        serverId={serverId}
+        type="conversation"
+      />
+      {video && (
+        <MediaRoom chatId={conversation.id} video={true} audio={true} />
+      )}
+      {!video && (
+        <>
+          <ChatMessages
+            member={currentMember}
+            name={otherMember?.profile.name || ""}
+            chatId={conversation.id}
+            type="conversation"
+            apiUrl="/api/direct-messages"
+            paramKey="conversationId"
+            paramValue={conversation.id}
+            socketUrl="/api/socket/direct-messages"
+            socketQuery={{
+              conversationId: conversation.id,
+            }}
+          />
+          <ChatInput
+            name={otherMember?.profile.name || ""}
+            type="conversation"
+            apiUrl="/api/socket/direct-messages"
+            query={{
+              conversationId: conversation.id,
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+export default MemberIdPage;
+
+// /app/(setup)/page.tsx
+
+import { InitialModal } from "@/components/modals/initial-modal";
+import { db } from "@/lib/db";
+import { initialProfile } from "@/lib/initial.profile";
+import { redirect } from "next/navigation";
+
+const SetupPage = async () => {
+  const profile = await initialProfile();
+  const server = await db.server.findFirst({
+    where: {
+      members: {
+        some: {
+          profileId: profile.id,
+        },
+      },
+    },
+  });
+
+  if (server) {
+    return redirect(`/servers/${server.id}`);
+  }
+  return <InitialModal />;
+};
+
+export default SetupPage;
+
+// /pages/api/socket/direct-messages/[directMessageId].ts
+
+import { currentProfilePages } from "@/lib/current-profile-pages";
+import { db } from "@/lib/db";
+import { MemberRole } from "@prisma/client";
+import { NextApiRequest, NextApiResponse } from "next";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "DELETE" && req.method !== "PATCH") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
+  try {
+    const profile = await currentProfilePages(req);
+    const { directMessageId, conversationId } = req.query;
+    const { content } = req.body;
+    if (!profile) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (!conversationId) {
+      return res.status(400).json({ error: "Conversation ID missing" });
+    }
+    const conversation = await db.conversation.findFirst({
+      where: {
+        id: conversationId as string,
+        OR: [
+          {
+            memberOne: {
+              profileId: profile.id,
+            },
+          },
+          {
+            memberTwo: {
+              profileId: profile.id,
+            },
+          },
+        ],
+      },
+      include: {
+        memberOne: {
+          include: {
+            profile: true,
+          },
+        },
+        memberTwo: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    const member =
+      conversation.memberOne.profileId === profile.id
+        ? conversation.memberOne
+        : conversation.memberTwo;
+    if (!member) {
+      return res.status(404).json({ error: "Member not found" });
+    }
+    let directMessage = await db.directMessage.findFirst({
+      where: {
+        id: directMessageId as string,
+        conversationId: conversationId as string,
+      },
+      include: {
+        member: {
+          include: { profile: true },
+        },
+      },
+    });
+    if (!directMessage || directMessage.deleted) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    const isMessageOwner = directMessage.memberId === member.id;
+    const isAdmin = member.role === MemberRole.ADMIN;
+    const isModerator = member.role === MemberRole.MODERATOR;
+    const canModify = isMessageOwner || isAdmin || isModerator;
+    if (!canModify) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (req.method === "DELETE") {
+      directMessage = await db.directMessage.update({
+        where: {
+          id: directMessageId as string,
+        },
+        data: {
+          fileUrl: null,
+          content: "This message has been deleted",
+          deleted: true,
+        },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      });
+    }
+    if (req.method === "PATCH") {
+      if (!isMessageOwner) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      directMessage = await db.directMessage.update({
+        where: {
+          id: directMessageId as string,
+        },
+        data: {
+          content,
+        },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      });
+    }
+    const updateKey = `chat:${conversation.id}:messages:update`;
+    (res.socket as any).server.io.emit(updateKey, directMessage);
+    return res.status(200).json(directMessage);
+  } catch (error) {
+    console.log("[MESSAGE_ID]", error);
+    return res.status(500).json({ message: "Internal error" });
+  }
+}
+// /pages/api/socket/direct-messages/index.ts
+
+import { currentProfilePages } from "@/lib/current-profile-pages";
+import { db } from "@/lib/db";
+import { NextApiResponseServerIo } from "@/types";
+import { NextApiRequest } from "next";
+import { randomUUID } from "crypto";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponseServerIo
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const profile = await currentProfilePages(req);
+    const { content, fileUrl } = req.body;
+    const { conversationId } = req.query;
+
+    if (!profile) return res.status(401).json({ error: "Unauthorized" });
+    if (!conversationId)
+      return res.status(400).json({ error: "Conversation ID missing" });
+    if (!content) return res.status(400).json({ error: "Content missing" });
+    const conversation = await db.conversation.findFirst({
+      where: {
+        id: conversationId as string,
+        OR: [
+          {
+            memberOne: {
+              profileId: profile.id,
+            },
+          },
+          {
+            memberTwo: {
+              profileId: profile.id,
+            },
+          },
+        ],
+      },
+      include: {
+        memberOne: {
+          include: {
+            profile: true,
+          },
+        },
+        memberTwo: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    const member =
+      conversation.memberOne.profileId === profile.id
+        ? conversation.memberOne
+        : conversation.memberTwo;
+    if (!member) return res.status(404).json({ error: "Member not found" });
+
+    const message = await db.directMessage.create({
+      data: {
+        id: randomUUID(),
+        content,
+        fileUrl,
+        conversationId: conversationId as string,
+        memberId: member.id,
+        updatedAt: new Date(),
+      },
+      include: {
+        member: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    const channelKey = `chat:${conversationId}:messages`;
+    if (res?.socket?.server?.io) {
+      res.socket.server.io.emit(channelKey, message);
+    }
+
+    return res.status(200).json({ message });
+  } catch (error) {
+    console.error("[DIRECT_MESSAGES_POST]", error);
+    return res.status(500).json({ error: "Internal error" });
+  }
+}
+// /pages/api/socket/messages/[messageId].ts
+import { currentProfilePages } from "@/lib/current-profile-pages";
+import { db } from "@/lib/db";
+import { MemberRole } from "@prisma/client";
+import { NextApiRequest, NextApiResponse } from "next";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "DELETE" && req.method !== "PATCH") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
+  try {
+    const profile = await currentProfilePages(req);
+    const { messageId, serverId, channelId } = req.query;
+    const { content } = req.body;
+    if (!profile) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (!serverId) {
+      return res.status(400).json({ error: "Server ID missing" });
+    }
+    if (!channelId) {
+      return res.status(400).json({ error: "Channel ID missing" });
+    }
+    const server = await db.server.findFirst({
+      where: {
+        id: serverId as string,
+        members: {
+          some: {
+            profileId: profile.id,
+          },
+        },
+      },
+      include: {
+        members: true,
+      },
+    });
+    if (!server) {
+      return res.status(404).json({ error: "Server not found" });
+    }
+    const channel = await db.channel.findFirst({
+      where: { id: channelId as string, serverId: serverId as string },
+    });
+    if (!channel) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+    const member = server.members.find(
+      (member) => member.profileId === profile.id
+    );
+    if (!member) {
+      return res.status(404).json({ error: "Member not found" });
+    }
+    let message = await db.message.findFirst({
+      where: {
+        id: messageId as string,
+        channelId: channelId as string,
+      },
+      include: {
+        member: {
+          include: { profile: true },
+        },
+      },
+    });
+    if (!message || message.deleted) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    const isMessageOwner = message.memberId === member.id;
+    const isAdmin = member.role === MemberRole.ADMIN;
+    const isModerator = member.role === MemberRole.MODERATOR;
+    const canModify = isMessageOwner || isAdmin || isModerator;
+    if (!canModify) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (req.method === "DELETE") {
+      message = await db.message.update({
+        where: {
+          id: messageId as string,
+        },
+        data: {
+          fileUrl: null,
+          content: "This message has been deleted",
+          deleted: true,
+        },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      });
+    }
+    if (req.method === "PATCH") {
+      if (!isMessageOwner) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      message = await db.message.update({
+        where: {
+          id: messageId as string,
+        },
+        data: {
+          content,
+        },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      });
+    }
+    const updateKey = `chat:${channelId}:messages:update`;
+    (res.socket as any).server.io.emit(updateKey, message);
+    return res.status(200).json(message);
+  } catch (error) {
+    console.log("[MESSAGE_ID]", error);
+    return res.status(500).json({ message: "Internal error" });
+  }
+}
+// /pages/api/socket/messages/index.ts
+import { NextApiRequest } from "next";
+import { NextApiResponseServerIo } from "@/types";
+import { currentProfilePages } from "@/lib/current-profile-pages";
+import { db } from "@/lib/db";
+import { randomUUID } from "crypto";
+import { MessageRole } from "@prisma/client";
+import { createSystemMessage } from "@/lib/system/system-messages";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponseServerIo
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const profile = await currentProfilePages(req);
+    const { fileUrl, serverId, channelId } = req.body;
+    let { content } = req.body;
+
+    if (!profile) return res.status(401).json({ error: "Unauthorized" });
+    if (!serverId) return res.status(400).json({ error: "Server ID missing" });
+    if (!channelId)
+      return res.status(400).json({ error: "Channel ID missing" });
+    if (!content && !fileUrl)
+      return res.status(400).json({ error: "Content or file required" });
+
+    const server = await db.server.findFirst({
+      where: {
+        id: serverId,
+        members: { some: { profileId: profile.id } },
+      },
+      include: { members: true },
+    });
+
+    if (!server) return res.status(404).json({ error: "Server not found" });
+
+    const member = server.members.find(
+      (member) => member.profileId === profile.id
+    );
+    if (!member) return res.status(404).json({ error: "Member not found" });
+
+    const message = await db.message.create({
+      data: {
+        id: randomUUID(),
+        content: content || "",
+        fileUrl: fileUrl || undefined,
+        channelId,
+        memberId: member.id,
+        role: MessageRole.user,
+        updatedAt: new Date(),
+      },
+      include: {
+        member: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    const channelKey = `chat:${channelId}:messages`;
+    res?.socket?.server?.io?.emit(channelKey, message);
+
+    createSystemMessage(channelId, message).catch(console.error);
+
+    return res.status(200).json(message);
+  } catch (error) {
+    console.error("[MESSAGES_POST]", error);
+    return res.status(500).json({ error: "Internal Error" });
+  }
+}
+// /pages/api/socket/io.ts
+import { Server as NetServer } from "http";
+import { NextApiRequest } from "next";
+import { Server as ServerIO } from "socket.io";
+import { NextApiResponseServerIo } from "@/types";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+const ioHandler = (req: NextApiRequest, res: NextApiResponseServerIo) => {
+  if (!res.socket.server.io) {
+    const path = "/api/socket/io";
+    const httpServer: NetServer = res.socket.server as any;
+    const io = new ServerIO(httpServer, {
+      path: path,
+      addTrailingSlash: false,
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
+      transports: ["websocket", "polling"],
+      pingInterval: 25000,
+      pingTimeout: 20000,
+      connectTimeout: 10000,
+      allowEIO3: true,
+      maxHttpBufferSize: 1e8,
+      upgradeTimeout: 30000,
+      perMessageDeflate: {
+        threshold: 2048,
+      },
+    });
+
+    io.on("connection", (socket) => {
+      console.log("Socket connected:", socket.id);
+
+      socket.on("error", (error) => {
+        console.error("Socket error:", error);
+      });
+
+      socket.on("disconnect", (reason) => {
+        console.log(`Socket ${socket.id} disconnected:`, reason);
+      });
+    });
+
+    res.socket.server.io = io;
+  }
+
+  res.end();
+};
+
+export default ioHandler;
+
+// /app/api/channels/route.ts
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { MemberRole, ChannelType, Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const channelSchema = z.object({
+  name: z.string(),
+  type: z.nativeEnum(ChannelType),
+});
+
+export async function POST(req: Request) {
+  try {
+    const profile = await currentProfile();
+    const { name, type } = channelSchema.parse(await req.json());
+    const { searchParams } = new URL(req.url);
+    const serverId = searchParams.get("serverId");
+    if (!profile) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    if (!serverId) {
+      return new NextResponse("Server ID missing ", { status: 400 });
+    }
+    if (name === "general") {
+      return new NextResponse("Name cannot be 'general'", { status: 400 });
+    }
+    const server = await db.server.update({
+      where: {
+        id: serverId,
+        members: {
+          some: {
+            profileId: profile.id,
+            role: {
+              in: [MemberRole.ADMIN, MemberRole.MODERATOR],
+            },
+          },
+        },
+      },
+      data: {
+        channels: {
+          create: {
+            id: randomUUID(),
+            profileId: profile.id,
+            name,
+            type,
+            updatedAt: new Date(),
+          },
+        },
+      },
+    });
+    return NextResponse.json(server);
+  } catch (error) {
+    console.log("[CHANNELS_POST]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
+// /app/api/direct-messages/route.ts
+
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { DirectMessage } from "@prisma/client";
+import { NextResponse } from "next/server";
+const MESSAGES_BATCH = 10;
+
+export async function GET(req: Request) {
+  try {
+    const profile = await currentProfile();
+    const { searchParams } = new URL(req.url);
+    const cursor = searchParams.get("cursor");
+    const conversationId = searchParams.get("conversationId");
+    if (!profile) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    if (!conversationId) {
+      return new NextResponse("Conversation ID missing", { status: 400 });
+    }
+    let messages: DirectMessage[] = [];
+    if (cursor) {
+      messages = await db.directMessage.findMany({
+        take: MESSAGES_BATCH,
+        skip: 1,
+        cursor: {
+          id: cursor,
+        },
+        where: { conversationId },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    } else {
+      messages = await db.directMessage.findMany({
+        take: MESSAGES_BATCH,
+        where: { conversationId },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    }
+    let nextCursor = null;
+    if (messages.length === MESSAGES_BATCH) {
+      nextCursor = messages[MESSAGES_BATCH - 1].id;
+    }
+    return NextResponse.json({ items: messages, nextCursor });
+  } catch (error) {
+    console.log("[DIRECT_MESSAGES_GET]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
+// /app/api/messages/route.ts
+
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { Message } from "@prisma/client";
+import { NextResponse } from "next/server";
+const MESSAGES_BATCH = 10;
+
+export async function GET(req: Request) {
+  try {
+    const profile = await currentProfile();
+    const { searchParams } = new URL(req.url);
+    const cursor = searchParams.get("cursor");
+    const channelId = searchParams.get("channelId");
+    if (!profile) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    if (!channelId) {
+      return new NextResponse("Channel ID missing", { status: 400 });
+    }
+    let messages: Message[] = [];
+    if (cursor) {
+      messages = await db.message.findMany({
+        take: MESSAGES_BATCH,
+        skip: 1,
+        cursor: {
+          id: cursor,
+        },
+        where: { channelId },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    } else {
+      messages = await db.message.findMany({
+        take: MESSAGES_BATCH,
+        where: { channelId },
+        include: {
+          member: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    }
+    let nextCursor = null;
+    if (messages.length === MESSAGES_BATCH) {
+      nextCursor = messages[MESSAGES_BATCH - 1].id;
+    }
+    return NextResponse.json({ items: messages, nextCursor });
+  } catch (error) {
+    console.log("[MESSAGES_GET]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
+// /app/api/servers/route.ts
+
+import { v4 as uuidv4 } from "uuid";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { ChannelType, MemberRole } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
+export async function POST(req: Request) {
+  try {
+    const { name, imageUrl } = await req.json();
+    const profile = await currentProfile();
+    if (!profile) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    const server = await db.server.create({
+      data: {
+        id: uuidv4(),
+        profileId: profile.id,
+        name,
+        imageUrl,
+        inviteCode: uuidv4(),
+        updatedAt: new Date(),
+        channels: {
+          create: [
+            {
+              id: uuidv4(),
+              name: "general",
+              type: ChannelType.TEXT,
+              profileId: profile.id,
+              updatedAt: new Date(),
+            },
+          ],
+        },
+        members: {
+          create: [
+            {
+              id: uuidv4(),
+              profileId: profile.id,
+              role: MemberRole.ADMIN,
+              updatedAt: new Date(),
+            },
+          ],
+        },
+      },
+    });
+    return NextResponse.json(server);
+  } catch (error) {
+    console.log("[SERVERS_POST]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+// /app/api/uploadthing/core.ts
+
+import { auth } from "@clerk/nextjs/server";
+import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { UploadThingError } from "uploadthing/server";
+
+const f = createUploadthing();
+
+const handleAuth = async () => {
+  const { userId } = await auth();
+  if (!userId) throw new UploadThingError("Unauthorized!");
+  return { userId: userId };
+};
+
+export const ourFileRouter = {
+  serverImage: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .middleware(() => handleAuth())
+    .onUploadComplete(() => {}),
+  messageFile: f(["image", "pdf"])
+    .middleware(() => handleAuth())
+    .onUploadComplete(() => {}),
+} satisfies FileRouter;
+
+export type OurFileRouter = typeof ourFileRouter;
+import { createRouteHandler } from "uploadthing/next";
+
+import { ourFileRouter } from "./core";
+
+// Export routes for Next App Router
+export const { GET, POST } = createRouteHandler({
+  router: ourFileRouter,
+
+  // Apply an (optional) custom config:
+  // config: { ... },
+});

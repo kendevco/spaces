@@ -1,0 +1,1070 @@
+# LMS MVP Project Rules
+# This file defines the rules and processes for our Learning Management System project
+
+# Template Preservation Guidelines
+template_preservation:
+  holy_files:
+    - payload.config.ts:
+        rules:
+          - 'Maintain original import structure and order'
+          - 'Keep original comments and placeholders'
+          - 'Use defaultLexical from fields directory'
+          - 'Preserve getServerSideURL utility'
+          - 'No type annotations in this file'
+          - 'No plugin configurations (move to plugins.ts)'
+          - 'No direct editor configurations'
+          - 'Minimal comments, only from original template'
+          - 'Use standard Node.js imports (no node: prefix)'
+          - 'Keep file-type imports compatible with Payload version'
+        import_structure:
+          order:
+            1: 'Database adapter (mongooseAdapter)'
+            2: 'Core dependencies (sharp, path, payload, url)'
+            3: 'Collections'
+            4: 'Globals'
+            5: 'Plugins and utilities'
+            6: 'Spaces module imports (last)'
+        modifications:
+          allowed:
+            - 'Adding Spaces collections to collections array'
+            - 'Adding Settings to globals array'
+            - 'Adding Spaces imports at the end'
+          forbidden:
+            - 'Adding type imports'
+            - 'Adding generateTitle/URL functions'
+            - 'Modifying original template comments'
+            - 'Adding new plugin configurations'
+            - 'Using node: protocol imports'
+
+    - plugins.ts:
+        rules:
+          - 'Keep all plugin configurations here'
+          - 'Maintain original plugin order'
+          - 'Keep type annotations for plugin configs'
+          - 'Preserve SEO title/URL generation'
+        structure:
+          - 'Import all plugins first'
+          - 'Import types for configurations'
+          - 'Define helper functions'
+          - 'Export plugins array'
+
+  spaces_integration:
+    collections_integration:
+      - 'Add Spaces collections after template collections'
+      - 'Maintain original collection order'
+      - 'No collection configuration in payload.config.ts'
+
+    globals_integration:
+      - 'Add Settings global last in globals array'
+      - 'Keep original globals order (Header, Footer)'
+
+    imports_organization:
+      - 'Group Spaces imports separately'
+      - 'Place Spaces imports after template imports'
+      - 'Use consistent import style'
+
+# Technology Stack Requirements
+technologies:
+  frontend:
+    - framework: 'Next.js@15.0.0'
+    - styling: 'tailwindcss@latest'
+    - ui:
+        - 'shadcn-ui@latest'
+        - 'aceternity-ui@latest'
+        - 'magic-ui@latest'
+        - 'vaul@latest'
+        - 'sonner@latest'
+        - 'cmdk@latest'
+    - state: 'nuqs@latest'
+    - forms: '@hookform/resolvers@latest'
+    - validation: 'zod@latest'
+    - animation:
+        - 'framer-motion@latest'
+        - '@legendapp/motion@latest'
+        - '@formkit/auto-animate@latest'
+
+  backend:
+    - cms: 'payload@3.0.0'
+    - orm: 'drizzle-orm@latest'
+    - database: 'neon@latest'
+    - auth:
+        current: 'payload-auth@3.0.0'
+        future: 'clerk@latest'
+    - ai: '@vercel/ai@latest'
+    - payments: 'stripe@latest'
+    - uploads: 'uploadthing@latest'
+    - email: 'resend@latest'
+    - realtime: 'pusher@latest'
+
+  deployment:
+    - platform: 'vercel@latest'
+    - monitoring:
+        - 'sentry@latest'
+        - '@google-cloud/logging@latest'
+        - '@google-cloud/opentelemetry-cloud-monitoring-exporter@latest'
+        - '@google-cloud/opentelemetry-cloud-trace-exporter@latest'
+    - analytics: 'vercel-analytics@latest'
+
+  compatibility:
+    notes:
+      - 'Payload CMS 3.0 requires Next.js 15 for optimal performance'
+      - 'Server Actions are fully supported in Next.js 15'
+      - 'App Router is the recommended approach'
+      - 'React Server Components are fully utilized'
+      - 'nuqs provides URL-based state management compatible with RSC'
+
+# State Management Guidelines
+state:
+  principles:
+    - 'Prefer server-side state management over client-side'
+    - 'Use URL state for shareable and bookmarkable UI states'
+    - 'Leverage React Server Components for data fetching'
+    - 'Minimize client-side JavaScript'
+
+  urlState:
+    usage:
+      - 'Search parameters and filters'
+      - 'Pagination state'
+      - 'Tab selections'
+      - 'Modal states'
+      - 'Sort orders'
+      - 'View preferences'
+
+    implementation:
+      - 'Use nuqs for type-safe URL state management'
+      - 'Define searchParams types with Zod schemas'
+      - 'Implement default values for all URL parameters'
+      - 'Handle URL parameter validation'
+
+    benefits:
+      - 'SEO-friendly state management'
+      - 'Shareable URLs with complete state'
+      - 'Reduced client-side JavaScript'
+      - 'Better caching capabilities'
+      - 'Native browser history support'
+
+  serverState:
+    patterns:
+      - 'Use Server Components for data fetching'
+      - 'Implement server actions for mutations'
+      - 'Cache responses appropriately'
+      - 'Handle loading and error states'
+
+  clientState:
+    limitations:
+      - 'Restrict to ephemeral UI state only'
+      - 'Use React.useState for temporary form state'
+      - 'Avoid redundant client-side state'
+      - 'Prefer URL state when possible'
+
+# Collections Structure
+collections:
+  core:
+    - Tenants
+    - Users
+    - Courses
+    - Modules
+    - Lessons
+    - Quizzes
+    - Assignments
+    - Submissions
+
+  gamification:
+    - Points
+    - Badges
+    - Achievements
+    - Streaks
+    - Leaderboard
+
+  communication:
+    - Notifications
+    - Collaborations
+    - Announcements
+    - SupportTickets
+
+  settings:
+    - TenantSettings
+    - StudentSettings
+    - LearningPaths
+
+# File Structure
+structure:
+  app:
+    - '(auth): Authentication routes'
+    - '(dashboard): Protected dashboard routes'
+    - 'api: API routes when necessary'
+    - 'public: Static assets'
+
+  components:
+    - 'ui: Reusable UI components'
+    - 'forms: Form components'
+    - 'layouts: Layout components'
+
+  lib:
+    - 'db: Database configuration'
+    - 'utils: Utility functions'
+    - 'validation: Schema validation'
+
+  types:
+    - 'Global type definitions'
+
+# Code Standards
+standards:
+  general:
+    - 'Use TypeScript strict mode'
+    - 'Implement proper error handling'
+    - 'Add comprehensive logging'
+    - 'Document all public APIs'
+    - 'Follow SOLID principles'
+
+  nextjs:
+    - 'Use server components by default'
+    - 'Implement proper data fetching patterns'
+    - 'Optimize for performance'
+    - 'Follow app router best practices'
+
+  database:
+    - 'Use Drizzle migrations'
+    - 'Implement proper indexing'
+    - 'Handle database errors gracefully'
+    - 'Use transactions where needed'
+
+  security:
+    - 'Implement proper authentication'
+    - 'Use role-based access control'
+    - 'Sanitize all inputs'
+    - 'Protect sensitive data'
+
+  testing:
+    - 'Write tests for critical paths'
+    - 'Maintain good test coverage'
+    - 'Use proper test isolation'
+    - 'Mock external dependencies'
+
+# Multi-Agent Development Process
+agents:
+  architect:
+    role: 'System Design & Architecture'
+    responsibilities:
+      - 'Review and approve architectural decisions'
+      - 'Ensure scalability and performance'
+      - 'Maintain system consistency'
+      - 'Plan data structures and relationships'
+    triggers:
+      - 'New feature proposal'
+      - 'Architecture changes'
+      - 'Performance optimization requests'
+      - 'Database schema updates'
+
+  developer:
+    role: 'Code Implementation'
+    responsibilities:
+      - 'Write clean, maintainable code'
+      - 'Implement features according to specs'
+      - 'Handle error cases and edge conditions'
+      - 'Optimize database queries'
+    triggers:
+      - 'New feature request'
+      - 'Bug fix needed'
+      - 'Code optimization required'
+      - 'Performance issues'
+
+  reviewer:
+    role: 'Code Review & Quality'
+    responsibilities:
+      - 'Review code for best practices'
+      - 'Check for security vulnerabilities'
+      - 'Ensure code style consistency'
+      - 'Verify state management patterns'
+    checks:
+      - 'Code style compliance'
+      - 'Security best practices'
+      - 'Performance implications'
+      - 'Test coverage'
+      - 'URL state management'
+
+  tester:
+    role: 'Testing & Validation'
+    responsibilities:
+      - 'Write and maintain tests'
+      - 'Verify feature functionality'
+      - 'Regression testing'
+      - 'Load testing'
+    testTypes:
+      - 'Unit tests'
+      - 'Integration tests'
+      - 'E2E tests'
+      - 'Performance tests'
+      - 'Load tests'
+
+  security:
+    role: 'Security Compliance'
+    responsibilities:
+      - 'Review security implications'
+      - 'Ensure data protection'
+      - 'Audit authentication/authorization'
+      - 'Monitor security events'
+    checks:
+      - 'Authentication flows'
+      - 'Data encryption'
+      - 'API security'
+      - 'Input validation'
+      - 'Rate limiting'
+
+# Development Workflow
+workflow:
+  featureImplementation:
+    steps:
+      1:
+        agent: 'architect'
+        action: 'Review feature proposal'
+        output: 'Architecture decision document'
+        stateConsiderations:
+          - 'Determine if state should be URL-based'
+          - 'Plan server component structure'
+          - 'Identify client/server state boundaries'
+          - 'Consider data persistence needs'
+
+      2:
+        agent: 'developer'
+        action: 'Implement feature'
+        requirements:
+          - 'Follow Next.js 15 app router patterns'
+          - 'Use server actions over API routes'
+          - 'Implement URL state management with nuqs'
+          - 'Add proper loading and error states'
+          - 'Implement proper error handling'
+          - 'Add logging and monitoring'
+
+      3:
+        agent: 'reviewer'
+        action: 'Code review'
+        checks:
+          - 'Code quality'
+          - 'Performance'
+          - 'Security'
+          - 'Documentation'
+          - 'State management'
+
+      4:
+        agent: 'tester'
+        action: 'Testing'
+        requirements:
+          - 'Unit tests for utilities'
+          - 'Integration tests for API'
+          - 'E2E tests for critical flows'
+          - 'Load testing for scalability'
+
+      5:
+        agent: 'security'
+        action: 'Security review'
+        focus:
+          - 'Data protection'
+          - 'Authentication'
+          - 'Authorization'
+          - 'Rate limiting'
+
+  bugFix:
+    steps:
+      1:
+        agent: 'developer'
+        action: 'Reproduce and fix'
+        requirements:
+          - 'Document reproduction steps'
+          - 'Add regression test'
+
+      2:
+        agent: 'reviewer'
+        action: 'Review fix'
+        checks:
+          - 'Fix completeness'
+          - 'No new issues introduced'
+
+      3:
+        agent: 'tester'
+        action: 'Verify fix'
+        requirements:
+          - 'Test fix effectiveness'
+          - 'Run regression tests'
+
+# Error Handling
+errors:
+  levels:
+    - 'fatal: System crash level'
+    - 'error: Operation failure'
+    - 'warn: Potential issues'
+    - 'info: General information'
+    - 'debug: Debug information'
+
+  handling:
+    - 'Use custom error classes'
+    - 'Implement proper error boundaries'
+    - 'Log errors with context'
+    - 'Provide user-friendly messages'
+
+# Deployment Guidelines
+deployment:
+  vercel:
+    configuration:
+      - 'Use Edge Functions where appropriate'
+      - 'Configure proper caching strategies'
+      - 'Set up proper environment variables'
+      - 'Configure deployment regions'
+    monitoring:
+      - 'Set up error tracking with Sentry'
+      - 'Configure OpenTelemetry for tracing'
+      - 'Implement custom logging'
+      - 'Monitor Core Web Vitals'
+
+  database:
+    neon:
+      - 'Configure connection pooling'
+      - 'Set up read replicas'
+      - 'Implement query optimization'
+      - 'Configure automated backups'
+
+  security:
+    measures:
+      - 'Implement rate limiting'
+      - 'Set up CORS policies'
+      - 'Configure CSP headers'
+      - 'Enable WAF protection'
+
+# Performance Requirements
+performance:
+  metrics:
+    - 'Time to First Byte (TTFB) < 100ms'
+    - 'First Contentful Paint (FCP) < 1.5s'
+    - 'Largest Contentful Paint (LCP) < 2.5s'
+    - 'First Input Delay (FID) < 100ms'
+    - 'Cumulative Layout Shift (CLS) < 0.1'
+
+  optimization:
+    - 'Implement proper code splitting'
+    - 'Use React Suspense boundaries'
+    - 'Optimize images and assets'
+    - 'Minimize client-side JavaScript'
+    - 'Utilize edge caching'
+
+# Commit Guidelines
+commits:
+  format: 'type(scope): description'
+  types:
+    - 'feat: New feature'
+    - 'fix: Bug fix'
+    - 'docs: Documentation'
+    - 'style: Code style'
+    - 'refactor: Code refactor'
+    - 'test: Testing'
+    - 'chore: Maintenance'
+
+# Backup and Recovery
+backup:
+  database:
+    - 'Automated daily backups'
+    - 'Point-in-time recovery'
+    - 'Cross-region replication'
+    - 'Backup retention policy'
+
+  assets:
+    - 'Media file backups'
+    - 'Document versioning'
+    - 'Metadata backup'
+    - 'Recovery procedures'
+
+  monitoring:
+    - 'Backup success monitoring'
+    - 'Recovery testing schedule'
+    - 'Audit logging'
+    - 'Alert configuration'
+
+# Authentication Strategy
+auth:
+  phase1:
+    provider: 'Payload Built-in Auth'
+    features:
+      - 'Email/password authentication'
+      - 'Role-based access control'
+      - 'Session management'
+      - 'Password reset flow'
+      - 'Email verification'
+    implementation:
+      - "Use Payload's built-in auth system"
+      - 'Implement custom auth endpoints in Next.js'
+      - 'Set up proper session handling'
+      - 'Configure secure password policies'
+      - 'Set up email templates for auth flows'
+
+  phase2:
+    provider: 'Clerk'
+    features:
+      - 'Social authentication'
+      - 'Multi-factor authentication'
+      - 'User management dashboard'
+      - 'Advanced security features'
+      - 'Authentication analytics'
+    migration:
+      - 'Plan user data migration strategy'
+      - 'Set up Clerk webhooks'
+      - 'Update auth middleware'
+      - 'Migrate existing users'
+      - 'Update frontend components'
+
+  security:
+    - 'Implement CSRF protection'
+    - 'Set secure cookie policies'
+    - 'Configure rate limiting'
+    - 'Set up proper session timeouts'
+    - 'Implement audit logging'
+
+# UI and Animation Patterns
+ui_patterns:
+  floating:
+    description: 'Elements that float and respond to user interaction'
+    implementations:
+      - 'Floating navigation with Framer Motion'
+      - 'Hover cards using shadcn/ui + Aceternity'
+      - 'Animated tooltips with Magic UI'
+      - 'Context menus with radix-ui animations'
+    libraries:
+      - 'framer-motion'
+      - 'aceternity-ui'
+      - 'magic-ui'
+      - 'vaul'
+
+  morphing:
+    description: 'Elements that transform and change shape'
+    implementations:
+      - 'Shape-shifting buttons with Framer Motion'
+      - 'Expanding cards using Aceternity UI'
+      - 'Transitioning layouts with Motion One'
+      - 'Fluid backgrounds with Magic UI'
+    libraries:
+      - 'framer-motion'
+      - 'aceternity-ui'
+      - 'motion-one'
+      - 'magic-ui'
+
+  micro_interactions:
+    description: 'Small, subtle animations that provide feedback'
+    implementations:
+      - 'Button click effects with tailwindcss-animate'
+      - 'Input focus states with shadcn/ui'
+      - 'Loading spinners with Lucide icons'
+      - 'Progress indicators with Sonner'
+    libraries:
+      - 'tailwindcss-animate'
+      - 'shadcn-ui'
+      - 'lucide-react'
+      - 'sonner'
+
+  scroll_animations:
+    description: 'Animations triggered by scroll events'
+    implementations:
+      - 'Parallax effects with Framer Motion'
+      - 'Scroll-triggered reveals with Aceternity'
+      - 'Smooth transitions with Motion One'
+      - 'Intersection animations with Magic UI'
+    libraries:
+      - 'framer-motion'
+      - 'aceternity-ui'
+      - 'motion-one'
+      - 'magic-ui'
+
+animation_patterns:
+  layout:
+    description: 'Page and layout transition animations'
+    implementations:
+      - 'Page transitions with Framer Motion'
+      - 'Route changes using Next.js + Motion One'
+      - 'Modal animations with Vaul'
+      - 'List reordering with Auto Animate'
+    libraries:
+      - 'framer-motion'
+      - 'motion-one'
+      - 'vaul'
+      - '@formkit/auto-animate'
+
+  feedback:
+    description: 'User feedback animations'
+    implementations:
+      - 'Loading states with Lucide'
+      - 'Success/error animations with Sonner'
+      - 'Progress indicators with shadcn/ui'
+      - 'Notification toasts with Magic UI'
+    libraries:
+      - 'lucide-react'
+      - 'sonner'
+      - 'shadcn-ui'
+      - 'magic-ui'
+
+  interaction:
+    description: 'User interaction animations'
+    implementations:
+      - 'Hover effects with tailwindcss-animate'
+      - 'Click responses with Framer Motion'
+      - 'Drag and drop with Motion One'
+      - 'Gesture animations with Magic UI'
+    libraries:
+      - 'tailwindcss-animate'
+      - 'framer-motion'
+      - 'motion-one'
+      - 'magic-ui'
+
+# Component Animation Guidelines
+component_animations:
+  principles:
+    - 'Use subtle animations by default'
+    - 'Ensure animations are accessible (respect reduced-motion)'
+    - 'Keep animations under 300ms for micro-interactions'
+    - 'Use spring animations for natural feel'
+    - 'Maintain consistent animation patterns'
+
+  performance:
+    - 'Use CSS transforms over position properties'
+    - 'Animate on compositor-only properties'
+    - 'Implement proper will-change hints'
+    - 'Use requestAnimationFrame for JS animations'
+    - 'Lazy load heavy animation libraries'
+
+  accessibility:
+    - 'Respect prefers-reduced-motion'
+    - "Ensure animations don't cause vestibular issues"
+    - 'Provide alternative static states'
+    - 'Keep animations subtle and purposeful'
+    - 'Allow animation opt-out'
+# Spaces Module Integration
+spaces:
+  changes:
+    - 'Update collections structure'
+    - 'Add real-time specific requirements'
+    - 'All Payload Specific Types are found in /src/spaces/types exceptions are found in /src/spaces/types/'
+    - 'Minimize changes to the existing Payload CMS official Website Template'
+    - 'Use modals found in /src/spaces/modals for UX CRUD operations'
+    - 'Update state management for real-time features'
+    - 'Add Socket.IO specific configurations'
+
+  theme:
+    colors:
+      background:
+        primary: 'bg-gradient-to-br from-[#7364c0] to-[#02264a]'
+        dark: 'dark:from-[#000C2F] dark:to-[#003666]'
+      input:
+        background: 'bg-[#383A40] dark:bg-[#383A40]'
+        text: 'text-zinc-200'
+      text:
+        primary: 'text-white'
+        secondary: 'text-zinc-200'
+        muted: 'text-zinc-400'
+      accent:
+        primary: 'bg-[#7364c0]'
+        secondary: 'bg-[#02264a]'
+
+    components:
+      chat:
+        messages:
+          container: 'bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]'
+          welcome:
+            icon: 'bg-zinc-700'
+            text: 'text-white'
+        input:
+          container: 'bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]'
+          box: 'bg-[#383A40] dark:bg-[#383A40] text-zinc-200'
+      header:
+        container: 'bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]'
+      sidebar:
+        container: 'bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]'
+      modals:
+        container: 'bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]'
+
+    rules:
+      - 'All Spaces components should use the defined gradient backgrounds'
+      - 'Keep Payload admin UI using default Payload styling'
+      - 'Use dark mode variants for better accessibility'
+      - 'Maintain consistent blue gradient theme across all Spaces components'
+      - 'Input elements should use darker solid backgrounds for contrast'
+      - 'Text should be properly contrasted against gradient backgrounds'
+
+    scope:
+      included:
+        - 'All components under /src/spaces/*'
+        - 'All pages under /src/app/(spaces)/*'
+        - 'All Spaces-specific modals and overlays'
+      excluded:
+        - 'Payload admin dashboard'
+        - 'Payload collection views'
+        - 'Default Payload components'
+        - 'Core CMS functionality'
+
+# Troubleshooting Guidelines
+troubleshooting:
+  path_resolution:
+    common_issues:
+      - issue: 'Module not found errors'
+        fix:
+          - 'Use @/ prefix instead of src/ for imports'
+          - 'Ensure path exists in tsconfig.json paths'
+          - 'Check case sensitivity of file paths'
+          - 'Verify file extensions match'
+
+      - issue: 'Import path inconsistencies'
+        fix:
+          - 'Standardize on @/ prefix for all internal imports'
+          - 'Use relative paths only for same-directory imports'
+          - 'Update all src/ prefixes to @/'
+          - 'Check tsconfig.json path mappings'
+
+    import_standards:
+      paths:
+        - '@/*: Absolute imports from src directory'
+        - './: Relative imports from same directory'
+        - '../: Relative imports from parent directory'
+        - '@/components/: UI components'
+        - '@/utilities/: Utility functions'
+        - '@/types/: Type definitions'
+        - '@/spaces/: Spaces module'
+
+      conventions:
+        - 'Always use @/ prefix for src directory imports'
+        - 'Keep relative imports to minimum'
+        - 'Group imports by type/source'
+        - 'Maintain consistent order'
+
+    tsconfig_paths:
+      required:
+        - '@/*: ["./src/*"]'
+        - 'payload/types: ["./node_modules/payload/types", "./src/types/payload-custom"]'
+        - 'payload/config: ["./node_modules/payload/dist/config"]'
+        - '@payload-config: ["./src/payload.config.ts"]'
+
+  webpack:
+    node_imports:
+      issue: 'UnhandledSchemeError with node: protocol imports'
+      fix:
+        - 'Use standard import paths (e.g., fs instead of node:fs)'
+        - 'Update webpack configuration to handle node: imports if needed'
+        - 'Add node polyfills in next.config.js if required'
+
+    file_type:
+      issue: 'fileTypeFromFile import error from file-type package'
+      fix:
+        - 'Use compatible version of file-type package'
+        - 'Update import statement to match exported members'
+        - 'Add proper webpack resolution for file-type package'
+
+  next_js:
+    cache:
+      issue: 'Webpack cache errors and pack file strategy failures'
+      fix:
+        - 'Clear .next/cache directory'
+        - 'Run with clean cache: NEXT_SKIP_CACHE=1'
+        - 'Ensure proper file permissions'
+
+    hot_reload:
+      issue: 'Fast Refresh errors requiring full reload'
+      fix:
+        - 'Check for circular dependencies'
+        - 'Verify export/import consistency'
+        - 'Ensure proper module boundaries'
+
+  payload:
+    type_generation:
+      issue: 'Payload type generation errors'
+      fix:
+        - 'Run payload generate:types after collection changes'
+        - 'Ensure proper TypeScript configuration'
+        - 'Check for circular type dependencies'
+
+    cors:
+      issue: '500 errors on API routes'
+      fix:
+        - 'Verify CORS configuration matches environment'
+        - 'Check serverURL configuration'
+        - 'Validate authentication setup'
+
+# Authentication Path Guidelines
+auth_paths:
+  standardization:
+    routes:
+      - path: '/login'
+        purpose: 'Main authentication entry point'
+        handling:
+          - 'All auth-related redirects should point here'
+          - 'Maintain single source of truth for auth flow'
+          - 'Handle both /sign-in and /login redirects'
+
+      - path: '/sign-in'
+        purpose: 'Clerk authentication route'
+        handling:
+          - 'Should redirect to /login'
+          - 'Update middleware to handle redirect'
+          - 'Maintain Clerk integration compatibility'
+
+    redirects:
+      rules:
+        - 'All authentication redirects go to /login'
+        - 'Maintain redirect chain in middleware'
+        - 'Handle both relative and absolute paths'
+        - 'Preserve query parameters'
+
+      implementation:
+        middleware:
+          - 'Add redirect mapping in middleware'
+          - 'Handle auth state consistently'
+          - 'Preserve return URLs'
+          - 'Log redirect chains'
+
+  error_handling:
+    auth_failures:
+      - issue: '500 errors on auth routes'
+        fix:
+          - 'Check auth provider configuration'
+          - 'Verify environment variables'
+          - 'Ensure consistent redirect paths'
+          - 'Log auth flow errors'
+
+      - issue: 'Redirect loops'
+        fix:
+          - 'Map all auth paths to /login'
+          - 'Update middleware redirect logic'
+          - 'Clear auth state if needed'
+          - 'Add maximum redirect count'
+
+    session:
+      - issue: 'Session validation failures'
+        fix:
+          - 'Check session cookie configuration'
+          - 'Verify auth provider setup'
+          - 'Ensure proper CORS settings'
+          - 'Validate session middleware'
+
+# Middleware Guidelines
+middleware:
+  auth:
+    rules:
+      - 'Handle all auth-related paths'
+      - 'Maintain consistent redirect chain'
+      - 'Preserve query parameters'
+      - 'Log redirect decisions'
+
+    implementation:
+      - pattern: |
+          export async function middleware(request: NextRequest) {
+            // Auth path standardization
+            if (request.nextUrl.pathname === '/sign-in') {
+              return NextResponse.redirect(new URL('/login', request.url))
+            }
+
+            // Other auth checks
+            if (request.nextUrl.pathname.startsWith('/spaces')) {
+              const { user } = await checkSession()
+              if (!user) {
+                return NextResponse.redirect(new URL('/login', request.url))
+              }
+            }
+          }
+
+  paths:
+    protected:
+      - '/spaces/*'
+      - '/dashboard/*'
+      - '/settings/*'
+
+    auth:
+      - '/login'
+      - '/sign-in'
+      - '/sign-up'
+      - '/forgot-password'
+
+    public:
+      - '/'
+      - '/about'
+      - '/contact'
+
+# Development Environment
+environment:
+  next_config:
+    webpack:
+      - 'Configure proper node polyfills'
+      - 'Handle node: protocol imports'
+      - 'Set up proper module resolution'
+      - 'Configure file-type package resolution'
+
+    experimental:
+      - 'Enable necessary experimental features'
+      - 'Configure proper serverActions'
+      - 'Set up proper middleware handling'
+
+  dependencies:
+    payload:
+      version: '3.0.0'
+      peer_dependencies:
+        - 'next@15.0.0'
+        - 'react@18.2.0'
+        - 'react-dom@18.2.0'
+
+    critical:
+      - 'file-type: Use compatible version'
+      - 'sharp: Required for image processing'
+      - 'mongodb: Required for database'
+
+  typescript:
+    config:
+      - 'Enable strict mode'
+      - 'Configure proper module resolution'
+      - 'Set up proper path aliases'
+      - 'Handle node module types'
+
+# Real-time Communication Patterns
+realtime:
+  sse:
+    principles:
+      - 'Use Server-Sent Events (SSE) for real-time updates'
+      - 'Prefer SSE over WebSockets for unidirectional data flow'
+      - 'Maintain consistent authentication via cookies'
+      - 'Implement proper cleanup and reconnection logic'
+      - 'Messages belong to channels, channels belong to spaces'
+      - 'Space membership is enforced at channel level'
+
+    implementation:
+      auth:
+        - 'Use withCredentials: true for cookie-based auth'
+        - 'Rely on Payload built-in cookie authentication'
+        - 'No manual token handling in SSE connections'
+        - 'Let Next.js/Payload handle cookie management'
+
+      data_relationships:
+        - 'Messages are linked to channels directly'
+        - 'Channels are linked to spaces'
+        - 'Space membership check happens at channel level'
+        - 'No direct space check needed for messages'
+
+      connection:
+        - 'Implement proper connection cleanup'
+        - 'Handle reconnection with exponential backoff'
+        - 'Maximum 3 retry attempts'
+        - 'Maximum 5 second delay between retries'
+
+      state:
+        - 'Use Set for message deduplication'
+        - 'Maintain message order with timestamps'
+        - 'Track last message ID for pagination'
+        - 'Clear message state on cleanup'
+
+      error_handling:
+        - 'Provide clear error messages to users'
+        - 'Log connection errors for debugging'
+        - 'Handle unmounted component cleanup'
+        - 'Reset retry count on successful messages'
+
+    endpoints:
+      - path: '/api/messages/sse'
+        auth: 'Required'
+        params:
+          - 'channelId or conversationId'
+          - 'spaceId'
+          - 'lastMessageId (optional)'
+        features:
+          - 'Keep-alive ping every 30 seconds'
+          - 'Initial message load on connect'
+          - 'Real-time message updates'
+          - 'Proper error responses'
+
+    components:
+      hooks:
+        - name: 'useMessages'
+          params:
+            - 'chatId: string'
+            - 'type: channel | conversation'
+            - 'spaceId: string'
+          state:
+            - 'messages: MessageType[]'
+            - 'error: string | null'
+          refs:
+            - 'messageSet: Set<string>'
+            - 'eventSource: EventSource'
+            - 'retryTimeout: NodeJS.Timeout'
+            - 'retryCount: number'
+            - 'mounted: boolean'
+            - 'lastMessageId: string'
+
+      chat:
+        - name: 'ChatMessages'
+          props:
+            - 'name: string'
+            - 'member: ExtendedMember'
+            - 'chatId: string'
+            - 'type: channel | conversation'
+            - 'socketQuery: { spaceId, channelId?, conversationId? }'
+          features:
+            - 'Real-time message updates'
+            - 'Message deduplication'
+            - 'Error handling'
+            - 'Proper cleanup'
+
+    best_practices:
+      - 'Keep SSE connection logic in custom hooks'
+      - 'Handle component unmounting properly'
+      - 'Implement proper error boundaries'
+      - 'Use proper TypeScript types'
+      - 'Maintain consistent error messages'
+      - 'Log connection events for debugging'
+      - 'Clean up resources on unmount'
+      - 'Handle reconnection gracefully'
+
+# Error Handling Standards
+error_handling:
+  file_structure:
+    root_level:
+      - file: 'src/app/error.tsx'
+        rules:
+          - 'Must be client component (use client)'
+          - 'No HTML structure'
+          - 'Use h2 for headings'
+          - 'Include error logging in useEffect'
+          - 'Provide reset functionality'
+
+      - file: 'src/app/not-found.tsx'
+        rules:
+          - 'Server component by default'
+          - 'No HTML structure'
+          - 'Use h2 for headings'
+          - 'Match error.tsx styling'
+          - 'Include home navigation'
+
+      - file: 'src/app/global-error.tsx'
+        rules:
+          - 'Must be client component (use client)'
+          - 'No HTML structure'
+          - 'Use h1 for headings'
+          - 'Include error logging'
+          - 'Provide reset functionality'
+
+  styling:
+    components:
+      container: 'flex flex-col items-center gap-4'
+      heading: 'text-4xl font-bold'
+      message: 'text-lg text-muted-foreground'
+      button: 'variant="default"'
+
+  logging:
+    principles:
+      - 'Log all errors in useEffect'
+      - 'Include error message and stack trace'
+      - 'Add error context when available'
+      - 'Use consistent error format'
+
+  best_practices:
+    - 'Keep HTML structure in global-error.tsx only'
+    - 'Use consistent styling across error pages'
+    - 'Maintain proper heading hierarchy'
+    - 'Provide clear error messages'
+    - 'Include recovery actions'
+    - 'Log errors with context'
+
+  testing:
+    requirements:
+      - 'Test error boundary functionality'
+      - 'Verify error message display'
+      - 'Check recovery actions'
+      - 'Validate logging implementation'

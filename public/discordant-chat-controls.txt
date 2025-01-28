@@ -1,0 +1,1083 @@
+
+const MainLayout = async ({ children }: { children: React.ReactNode }) => {
+  return (
+    <>
+      <div className="h-full">
+        <div className="h-full flex w-[72px] z-30 flex-col fixed inset-y-0">
+          <NavigationSidebar />
+        </div>
+        <main className="h-full w-full pl-[72px]">{children}</main>
+      </div>
+    </>
+  );
+};
+
+
+export default MainLayout;
+
+const ServerIdLayout = async ({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: { serverId: string };
+}) => {
+  const { serverId } = await params;
+
+
+  return (
+    <div className="h-full">
+      <div className="sidebar md:flex h-full w-60 z-20 flex-col fixed inset-y-0">
+        <ServerSidebar serverId={serverId} />
+      </div>
+      <main className="h-full md:pl-60 bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
+        {children}
+      </main>
+    </div>
+  );
+};
+
+
+export default ServerIdLayout;
+
+const ServerIdPage = async ({ params }: ServerIdPageProps) => {
+  // Await params since it is now a promise
+  const { serverId } = await params;
+  const profile = await currentProfile();
+  if (!profile) {
+    const authInstance = await auth();
+    return authInstance.redirectToSignIn();
+  }
+  const server = await db.server.findUnique({
+    where: {
+      id: serverId,
+      members: {
+        some: {
+          profileId: profile.id,
+        },
+      },
+    },
+    include: {
+      channels: {
+        where: {
+          name: "general",
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+  });
+  const initialChannel = server?.channels[0];
+  if (initialChannel?.name !== "general") {
+    return null;
+  }
+  return (
+    <LoadingRedirect
+      serverId={serverId}
+      initialChannelId={initialChannel?.id}
+      shouldRedirect={initialChannel?.name === "general"}
+    />
+  );
+};
+
+
+export default ServerIdPage;
+export async function generateMetadata({ params }: ChannelIdPageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const { channelId, serverId } = resolvedParams;
+
+
+  const channel = await db.channel.findUnique({
+    where: { id: channelId },
+    include: {
+      server: true
+    }
+  });
+
+
+  return {
+    title: channel ? `#${channel.name} - ${channel.server.name}` : "Channel",
+  };
+}
+
+
+const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
+  // Await the params, since they are now a promise
+  const resolvedParams = await params;
+  const { channelId, serverId } = resolvedParams;
+  const profile = await currentProfile();
+  if (!profile) {
+    const authInstance = await auth();
+    return authInstance.redirectToSignIn();
+  }
+  const channel = await db.channel.findUnique({
+    where: {
+      id: channelId,
+    },
+  });
+  const member = await db.member.findFirst({
+    where: {
+      serverId: serverId,
+      profileId: profile.id,
+    },
+  });
+
+
+  if (!member || !channel) {
+    redirect("/");
+  }
+
+
+  return (
+    <div className="bg-white dark:bg-[#313338] flex flex-col h-full">
+      <ChatHeader
+        name={channel.name}
+        serverId={channel.serverId}
+        type="channel"
+      />
+      {channel.type === ChannelType.TEXT && (
+        <>
+          <ChatMessages
+            member={member}
+            name={channel.name}
+            chatId={channel.id}
+            type="channel"
+            apiUrl="/api/messages"
+            socketUrl="/api/socket/messages"
+            socketQuery={{
+              channelId: channel.id,
+              serverId: channel.serverId,
+            }}
+            paramKey="channelId"
+            paramValue={channel.id}
+          />
+          <ChatInput
+            apiUrl="/api/socket/messages"
+            name={channel.name}
+            type="channel"
+            query={{ channelId: channel.id, serverId: channel.serverId }}
+          />
+        </>
+      )}
+      {channel.type === ChannelType.AUDIO && (
+        <MediaRoom chatId={channel.id} video={false} audio={true} />
+      )}
+      {channel.type === ChannelType.VIDEO && (
+        <MediaRoom chatId={channel.id} video={true} audio={true} />
+      )}
+    </div>
+  );
+};
+export default ChannelIdPage;
+
+
+export const NavigationSidebar = async () => {
+  const profile = await currentProfile();
+  if (!profile) {
+    return redirect("/");
+  }
+
+
+  const servers = await db.server.findMany({
+    where: {
+      members: {
+        some: {
+          profileId: profile.id,
+        },
+      },
+    },
+  });
+  return (
+    <div className="space-y-4 flex flex-col items-center h-full text-white w-full bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666] py-3">
+      <NavigationAction />
+      <Separator className="h-[2px] bg-zinc-300 dark:bg-zinc-700 rounded-md w-10 mx-auto" />
+      <ScrollArea className="flex-1 w-full">
+        {servers.map((server) => (
+          <div key={server.id} className="mb-4">
+            <NavigationItem
+              id={server.id}
+              name={server.name}
+              imageUrl={server.imageUrl || ""}
+            />
+          </div>
+        ))}
+      </ScrollArea>
+      <div className="flex pb-3 mt-auto items-center flex-col gap-y-4">
+        <NavigationMenu />
+        <SignedOut>
+          <SignInButton />
+        </SignedOut>
+        <SignedIn>
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-[45px] w-[45px]",
+              },
+            }}
+          />
+        </SignedIn>
+      </div>
+    </div>
+  );
+};
+export function NavigationMenu() {
+  const { setTheme, theme } = useTheme();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const router = useRouter();
+  const { user } = useUser();
+
+
+  // Check if user has admin role
+  const isAdmin = user?.publicMetadata?.role === "admin";
+
+
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      const response = await fetch("/api/messages/analyze/sync", {
+        method: "POST",
+      });
+
+
+      if (!response.ok) {
+        throw new Error("Sync failed");
+      }
+
+
+      router.refresh();
+    } catch (error) {
+      console.error("Sync error:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Settings className="h-5 w-5" />
+          <span className="sr-only">Settings menu</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" alignOffset={4}>
+        <DropdownMenuLabel>Settings</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => setTheme("light")}>
+            <Sun className="mr-2 h-4 w-4" />
+            Light Mode
+            {theme === "light" && <span className="ml-auto">✓</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme("dark")}>
+            <Moon className="mr-2 h-4 w-4" />
+            Dark Mode
+            {theme === "dark" && <span className="ml-auto">✓</span>}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <SignOutButton>
+              <div className="flex items-center">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </div>
+            </SignOutButton>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuGroup>
+          {isAdmin && (
+            <DropdownMenuItem onClick={handleSync} disabled={isSyncing}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {isSyncing ? "Syncing..." : "Run Sync"}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+
+interface NavigationItemProps {
+  id: string;
+  imageUrl: string;
+  name: string;
+}
+
+
+export const NavigationItem = ({
+  id,
+  imageUrl,
+  name,
+}: NavigationItemProps) => {
+  const params = useParams();
+  const router = useRouter();
+
+
+  const onClick = () => {
+    router.push(`/servers/${id}`);
+  };
+
+
+  return (
+    <ActionTooltip
+      side="right"
+      align="center"
+      label={name}
+    >
+      <button
+        onClick={onClick}
+        className={cn(
+          "group relative flex items-center justify-center rounded-[24px] overflow-hidden w-[48px] h-[48px] mx-3 transition-all hover:rounded-[16px] z-50",
+          params?.serverId === id && "rounded-[16px] bg-primary/10"
+        )}
+      >
+        <Image
+          fill
+          src={imageUrl}
+          alt={name}
+          sizes="48px"
+          onError={(e) => {
+            console.error(`[NAVIGATION_ITEM] Image error for ${name}:`, e);
+            e.currentTarget.src = "/placeholder.png";
+          }}
+        />
+      </button>
+    </ActionTooltip>
+  );
+};
+// src/components/navigation/navigation-action.tsx
+"use client";
+
+
+import { Plus } from "lucide-react";
+import { ActionTooltip } from "@/components/action-tooltip";
+import { useModal } from "@/hooks/use-modal-store";
+
+
+export const NavigationAction = () => {
+  const { onOpen } = useModal();
+  return (
+    <div>
+      <ActionTooltip side="right" align="center" label="Add a server">
+        <button
+          className="group flex items-center"
+          onClick={() => {
+            onOpen("createServer");
+          }}
+        >
+          <div className="flex mx-3 h-[48px] w-[48px] rounded-[24px] group-hover:rounded-[16px] transition-all overflow-hidden items-center justify-center bg-background dark:bg-neutral-700 group-hover:bg-emerald-500">
+            <Plus
+              className="group-hover:text-white transition text-emerald-500"
+              size={25}
+            />
+          </div>
+        </button>
+      </ActionTooltip>
+    </div>
+  );
+};
+
+
+// src/components/chat/chat-messages.tsx
+"use client";
+import { Member, Message, Profile } from "@prisma/client";
+import { ChatWelcome } from "./chat-welcome";
+import { useChatQuery } from "@/hooks/use-chat-query";
+import { Loader2, ServerCrash } from "lucide-react";
+import { ElementRef, Fragment, useRef } from "react";
+import { ChatItem } from "./chat-item";
+import { format } from "date-fns";
+import { useChatSocket } from "@/hooks/use-chat-socket";
+import { useChatScroll } from "@/hooks/use-chat-scroll";
+
+
+type MessageWithMemberWithProfile = Message & {
+  member: Member & {
+    profile: Profile;
+  };
+};
+
+
+const DATE_FORMAT = "d MMM yyyy, HH:mm";
+
+
+interface ChatMessagesProps {
+  name: string;
+  member: Member;
+  chatId: string;
+  apiUrl: string;
+  socketUrl: string;
+  socketQuery: Record<string, string>;
+  paramKey: "channelId" | "conversationId";
+  paramValue: string;
+  type: "channel" | "conversation";
+}
+
+
+const isMessageUpdated = (updatedAt: Date, createdAt: Date) => {
+  // Format to minute precision to ignore milliseconds
+  return format(new Date(updatedAt), 'yyyyMMddHHmm') !==
+    format(new Date(createdAt), 'yyyyMMddHHmm');
+};
+
+
+export const ChatMessages = ({
+  name,
+  member,
+  chatId,
+  apiUrl,
+  socketUrl,
+  socketQuery,
+  paramKey,
+  paramValue,
+  type,
+}: ChatMessagesProps) => {
+  const queryKey = `chat:${chatId}`;
+  const addKey = `chat:${chatId}:messages`;
+  const updateKey = `chat:${chatId}:messages:update`;
+
+
+  const chatRef = useRef<ElementRef<"div">>(null);
+  const bottomRef = useRef<ElementRef<"div">>(null);
+
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status,
+  } = useChatQuery({
+    queryKey,
+    apiUrl,
+    paramKey,
+    paramValue,
+  });
+
+
+  useChatSocket({ queryKey, addKey, updateKey });
+  useChatScroll({
+    chatRef,
+    bottomRef,
+    loadMore: fetchNextPage,
+    shouldLoadMore: !isFetchingNextPage && !!hasNextPage,
+    count: data?.pages?.reduce((acc, page) => acc + page.items.length, 0) ?? 0,
+  });
+
+
+  if (status === "pending") {
+    return (
+      <div className="flex flex-col flex-1 justify-center items-center bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
+        <Loader2 className="h-7 w-7 text-zinc-500 animate-spin my-4" />
+        <p className="text-xs text-zinc-400">Loading messages...</p>
+      </div>
+    );
+  }
+
+
+  if (status === "error") {
+    return (
+      <div className="flex flex-col flex-1 justify-center items-center bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
+        <ServerCrash className="h-7 w-7 text-zinc-500 my-4" />
+        <p className="text-xs text-zinc-400">Something went wrong!</p>
+      </div>
+    );
+  }
+
+
+  return (
+    <div ref={chatRef} className="flex-1 flex flex-col py-4 overflow-y-auto bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
+      {!hasNextPage && <div className="flex-1" />}
+      {!hasNextPage && <ChatWelcome type={type} name={name} />}
+      {hasNextPage && (
+        <div className="flex justify-center">
+          {isFetchingNextPage ? (
+            <Loader2 className="h-6 w-6 text-zinc-500 animate-spin my-4" />
+          ) : (
+            <button
+              onClick={() => fetchNextPage()}
+              className="text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 text-xs my-4 dark:hover:text-zinc-300 transition"
+            >
+              Load previous messages
+            </button>
+          )}
+        </div>
+      )}
+      <div className="flex flex-col-reverse mt-auto">
+        {data?.pages?.map((group, i) => (
+          <Fragment key={i}>
+            {group.items.map((message: MessageWithMemberWithProfile, index: number) => (
+              <ChatItem
+                key={message.id}
+                id={message.id}
+                currentMember={member}
+                member={message.member}
+                content={message.content}
+                fileUrl={message.fileUrl}
+                deleted={message.deleted}
+                timestamp={format(new Date(message.createdAt), DATE_FORMAT)}
+                isUpdated={isMessageUpdated(message.updatedAt, message.createdAt)}
+                socketUrl={socketUrl}
+                socketQuery={socketQuery}
+                isLast={i === 0 && index === group.items.length - 1}
+              />
+            ))}
+          </Fragment>
+        ))}
+      </div>
+      <div ref={bottomRef} />
+    </div>
+  );
+};
+// src/components/chat/image-dialog.tsx
+"use client";
+
+
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import Image from "next/image";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import VisuallyHidden from "@/components/visually-hidden";
+
+
+interface ImageDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  imageUrl: string;
+}
+
+
+export const ImageDialog = ({ isOpen, onClose, imageUrl }: ImageDialogProps) => {
+  const [scale, setScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
+
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const newScale = scale + (e.deltaY > 0 ? -0.1 : 0.1);
+    setScale(Math.max(0.5, Math.min(3, newScale)));
+  };
+
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setStartPos({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  };
+
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - startPos.x,
+        y: e.clientY - startPos.y,
+      });
+    }
+  };
+
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+
+  const handleDoubleClick = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+
+  const handleImageLoad = (e: any) => {
+    const img = e.target as HTMLImageElement;
+    setDimensions({
+      width: img.naturalWidth,
+      height: img.naturalHeight
+    });
+  };
+
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent
+        className={cn(
+          "max-w-[95vw] w-full h-[90vh] p-0 border-none",
+          "bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]"
+        )}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <DialogTitle className="sr-only">
+          Image Preview
+        </DialogTitle>
+        <div className="relative w-full h-full overflow-hidden">
+          <div
+            className={cn(
+              "absolute left-1/2 top-1/2 cursor-move w-full h-full flex items-center justify-center",
+              isDragging && "transition-none"
+            )}
+            style={{
+              transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${scale})`
+            }}
+          >
+            <Image
+              src={imageUrl}
+              alt="Enlarged view"
+              className="object-contain w-full h-full"
+              fill
+              sizes="95vw"
+              quality={100}
+              onLoad={handleImageLoad}
+              onDoubleClick={handleDoubleClick}
+              draggable={false}
+              priority
+            />
+          </div>
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-md text-sm">
+            {Math.round(scale * 100)}% (Scroll to zoom, drag to pan, double-click to reset)
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+// src/components/chat/chat-item.tsx
+"use client";
+
+
+import { Member, MemberRole, Profile } from "@prisma/client";
+import { UserAvatar } from "@/components/user-avatar";
+import { ActionTooltip } from "@/components/action-tooltip";
+import { Edit, FileIcon, ShieldAlert, ShieldCheck, Trash, Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState, Fragment } from "react";
+import { cn } from "@/lib/utils";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import * as z from "zod";
+import axios from "axios";
+import qs from "query-string";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useModal } from "@/hooks/use-modal-store";
+import { useRouter, useParams } from "next/navigation";
+import { useSocket } from "@/hooks/use-socket";
+import { MessageStatus } from "@/lib/system/types/messagestatus";
+import { ImageDialog } from "./image-dialog";
+
+
+const roleIconMap = {
+  GUEST: null,
+  MODERATOR: <ShieldCheck className="text-green-500 h-4 w-4 ml-2" />,
+  ADMIN: <ShieldCheck className="text-rose-500 h-4 w-4 ml-2" />,
+};
+
+
+const formSchema = z.object({
+  content: z.string().min(1),
+});
+
+
+interface ChatItemProps {
+  id: string;
+  content: string;
+  member: Member & {
+    profile: Profile;
+  };
+  timestamp: string;
+  fileUrl: string | null;
+  deleted: boolean;
+  currentMember: Member;
+  isUpdated: boolean;
+  socketUrl: string;
+  socketQuery: Record<string, string>;
+  isLast?: boolean;
+}
+
+
+interface MessageStatusIndicatorProps {
+  messageId: string;
+  isLast?: boolean;
+}
+
+
+const MessageStatusIndicator = ({ messageId, isLast }: MessageStatusIndicatorProps) => {
+  const { getMessageStatus } = useSocket();
+  const status = getMessageStatus(messageId);
+
+
+  if (!isLast) return null;
+
+
+  switch (status?.status) {
+    case "sending":
+      return <Clock className="h-3 w-3 ml-2 text-zinc-500" />;
+    case "sent":
+      return <Check className="h-3 w-3 ml-2 text-zinc-500" />;
+    case "delivered":
+      return <CheckCheck className="h-3 w-3 ml-2 text-green-500" />;
+    case "failed":
+      return (
+        <ActionTooltip label={status.error || "Failed to send"}>
+          <AlertCircle className="h-3 w-3 ml-2 text-red-500" />
+        </ActionTooltip>
+      );
+    default:
+      return null;
+  }
+};
+
+
+export const ChatItem = ({
+  id,
+  content,
+  member,
+  timestamp,
+  fileUrl,
+  deleted,
+  currentMember,
+  isUpdated,
+  socketUrl,
+  socketQuery,
+  isLast,
+}: ChatItemProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const { onOpen } = useModal();
+  const router = useRouter();
+  const params = useParams();
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+
+
+  const onMemberClick = () => {
+    if (member.id === currentMember.id) {
+      return;
+    }
+    router.push(`/servers/${params?.serverId}/conversations/${member.id}`);
+  };
+
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      content: content,
+    },
+  });
+
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const url = qs.stringifyUrl({
+        url: `${socketUrl}/${id}`,
+        query: socketQuery,
+      });
+
+
+      await axios.patch(url, values);
+      form.reset();
+      setIsEditing(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  useEffect(() => {
+    form.reset({
+      content: content,
+    });
+  }, [content, form]);
+
+
+  useEffect(() => {
+    const handleKeyDown = (event: any) => {
+      if (event.key === "Escape" || event.keyCode === 27) {
+        setIsEditing(false);
+      }
+    };
+
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+
+  const fileType = fileUrl?.split(".").pop() || undefined;
+  const isAdmin = currentMember.role === MemberRole.ADMIN;
+  const isModerator = currentMember.role === MemberRole.MODERATOR;
+  const isOwner = currentMember.id === member.id;
+  const canDeleteMessage = !deleted && (isAdmin || isModerator || isOwner);
+  const canEditMessage = !deleted && isOwner && !fileUrl;
+  const isPDF = fileType === "pdf" && fileUrl;
+  const isImage = !isPDF && fileUrl;
+
+
+  const renderContent = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+
+    // First split by URLs, then handle line breaks
+    const formattedParts = parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white underline break-all hover:text-white/90"
+          >
+            {part}
+          </a>
+        );
+      }
+      // Split by newlines and join with br tags
+      return part.split('\n').map((line, j) => (
+        <Fragment key={`${i}-${j}`}>
+          {line}
+          {j !== part.split('\n').length - 1 && <br />}
+        </Fragment>
+      ));
+    });
+
+
+    return formattedParts;
+  };
+
+
+  return (
+    <div className="relative group flex items-center hover:bg-black/5 p-4 transition w-full">
+      <div className="group flex gap-x-2 items-start w-full">
+        <div onClick={onMemberClick} className="cursor-pointer hover:drop-shadow-md transition">
+          <UserAvatar src={member.profile.imageUrl || undefined} />
+        </div>
+        <div className="flex flex-col w-full">
+          <div className="flex items-center gap-x-2">
+            <div className="flex items-center">
+              <p onClick={onMemberClick} className="font-semibold text-sm hover:underline cursor-pointer">
+                {member.profile.name}
+              </p>
+              <ActionTooltip label={member.role}>
+                {roleIconMap[member.role]}
+              </ActionTooltip>
+            </div>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center">
+              {timestamp}
+              <MessageStatusIndicator messageId={id} isLast={isLast} />
+            </span>
+          </div>
+          {isImage && (
+            <>
+              <div
+                onClick={() => setIsImageDialogOpen(true)}
+                className="relative aspect-square rounded-md mt-2 overflow-hidden border flex items-center bg-secondary h-48 w-48 cursor-pointer hover:opacity-90 transition"
+              >
+                <Image
+                  src={fileUrl}
+                  alt={content}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover"
+                />
+              </div>
+              <ImageDialog
+                isOpen={isImageDialogOpen}
+                onClose={() => setIsImageDialogOpen(false)}
+                imageUrl={fileUrl}
+              />
+            </>
+          )}
+          {isPDF && (
+            <div className="relative flex items-center p-2 mt-2 rounded-md bg-background/10">
+              <FileIcon className="h-10 w-10 fill-indigo-200 stroke-indigo-400" />
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-2 text-sm text-indigo-500 dark:text-indigo-400 hover:underline"
+              >
+                PDF File
+              </a>
+            </div>
+          )}
+          {!fileUrl && !isEditing && (
+            <p className={cn(
+              "text-sm text-zinc-600 dark:text-zinc-300",
+              deleted && "italic text-zinc-500 dark:text-zinc-400 text-xs mt-1"
+            )}>
+              {renderContent(content)}
+              {isUpdated && !deleted && (
+                <span className="text-[10px] mx-2 text-zinc-500 dark:text-zinc-400">
+                  (edited)
+                </span>
+              )}
+            </p>
+          )}
+          {!fileUrl && isEditing && (
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="flex items-center gap-x-2 w-full pt-2"
+              >
+                <FormField
+                  control={form.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <div className="relative w-full">
+                          <Input
+                            disabled={form.formState.isSubmitting}
+                            className="p-2 bg-zinc-200/90 dark:bg-zinc-700/75 border-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-600 dark:text-zinc-200"
+                            placeholder="Edited message"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <Button disabled={form.formState.isSubmitting} size="sm" variant="primary">
+                  Save
+                </Button>
+              </form>
+              <span className="text-[10px] mt-1 text-zinc-400">
+                Press escape to cancel, enter to save
+              </span>
+            </Form>
+          )}
+        </div>
+        {canDeleteMessage && (
+          <div className="hidden group-hover:flex items-center gap-x-2 absolute p-1 -top-2 right-5 bg-white dark:bg-zinc-800 border rounded-sm">
+            {canEditMessage && (
+              <ActionTooltip label="Edit">
+                <Edit
+                  onClick={() => setIsEditing(true)}
+                  className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+                />
+              </ActionTooltip>
+            )}
+            <ActionTooltip label="Delete">
+              <Trash
+                onClick={() => onOpen("deleteMessage", {
+                  apiUrl: `${socketUrl}/${id}`,
+                  query: socketQuery,
+                })}
+                className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+              />
+            </ActionTooltip>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+// src/components/chat/chat-input.tsx
+"use client";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Plus } from "lucide-react";
+import qs from "query-string";
+import axios from "axios";
+import { useModal } from "@/hooks/use-modal-store";
+import { EmojiPicker } from "@/components/emoji-picker";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+interface ChatInputProps {
+  apiUrl: string;
+  query: Record<string, any>;
+  name: string;
+  type: "conversation" | "channel";
+}
+const formSchema = z.object({
+  content: z.string().min(1),
+});
+export const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
+  const { onOpen } = useModal();
+  const router = useRouter();
+  const [fileUrl, setFileUrl] = useState("");
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      content: "",
+    },
+  });
+  const isLoading = form.formState.isSubmitting;
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    try {
+      const url = qs.stringifyUrl({
+        url: apiUrl,
+        query: query,
+      });
+
+
+      await axios.post(url, {
+        content: data.content,
+        fileUrl: fileUrl || undefined,
+        serverId: query?.serverId,
+        channelId: query?.channelId,
+      });
+
+
+      form.reset();
+      setFileUrl("");
+    } catch (error) {
+      console.error("[CHAT_INPUT_SUBMIT]", error);
+    }
+  };
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <FormField
+          control={form.control}
+          name="content"
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <div className="relative p-4 pb-6 bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
+                  <button
+                    type="button"
+                    onClick={() => onOpen("messageFile", { apiUrl, query })}
+                    className="absolute top-7 left-8 h-[24px] w-[24px] bg-zinc-500 dark:bg-zinc-400 hover:bg-zinc-600 dark:hover:bg-zinc-300 transition rounded-full p-1 flex items-center justify-center"
+                  >
+                    <Plus className="text-white dark:text-[#313338]" />
+                  </button>
+                  <Input
+                    placeholder={`Message ${type === "conversation" ? name : "#" + name
+                      }`}
+                    disabled={isLoading}
+                    className="px-14 py-6 bg-zinc-200/90 dark:bg-zinc-700/75 border-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-600 dark:text-zinc-200"
+                    {...field}
+                  />
+                  <div className="absolute top-7 right-8">
+                    <EmojiPicker
+                      onChange={(emoji: string) =>
+                        field.onChange(`${field.value}${emoji}`)
+                      }
+                    />
+                  </div>
+                </div>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </form>
+    </Form>
+  );
+};
