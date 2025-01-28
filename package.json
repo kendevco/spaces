@@ -16,9 +16,7 @@
     "lint:fix": "cross-env NODE_OPTIONS=--no-deprecation next lint --fix",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "reinstall": "cross-env NODE_OPTIONS=--no-deprecation rm -rf node_modules && rm pnpm-lock.yaml && pnpm --ignore-workspace install",
-    "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
-    "prepare": "husky install",
-    "lint-staged": "lint-staged"
+    "start": "cross-env NODE_OPTIONS=--no-deprecation next start"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -107,7 +105,6 @@
     "eslint": "^9.16.0",
     "eslint-config-next": "15.1.0",
     "eslint-plugin-import": "^2.31.0",
-    "lint-staged": "^15.3.0",
     "lucide-react": "^0.378.0",
     "postcss": "^8.4.38",
     "prettier": "^3.4.2",
@@ -120,11 +117,5 @@
   },
   "engines": {
     "node": "^18.20.2 || >=20.9.0"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ]
   }
 }
