@@ -1,7 +1,8 @@
-import type { CollectionAfterChangeHook } from 'payload'
+import type { AfterChangeHook, AfterLoginHook } from 'payload/dist/collections/config/types'
 import type { User, Profile, Media } from '@/payload-types'
 
-export const syncProfile: CollectionAfterChangeHook = async ({
+// For afterChange hook
+export const syncProfile: AfterChangeHook = async ({
   doc,
   operation,
   req: { payload },
@@ -34,7 +35,7 @@ export const syncProfile: CollectionAfterChangeHook = async ({
       const existingProfile = await payload.find({
         collection: 'profiles',
         where: {
-          user: {
+          'user.id': {
             equals: user.id,
           },
         },
@@ -82,4 +83,9 @@ export const syncProfile: CollectionAfterChangeHook = async ({
     console.error('Error syncing profile:', error)
     return doc
   }
+}
+
+// For afterLogin hook
+export const syncProfileOnLogin: AfterLoginHook = async ({ req: { payload }, user }) => {
+  return syncProfile({ doc: user, operation: 'update', req: { payload }, previousDoc: user })
 }

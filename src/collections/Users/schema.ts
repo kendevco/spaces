@@ -1,14 +1,28 @@
-{
+import { CollectionConfig } from 'payload'
+import { syncProfile } from './hooks/syncProfile'
+
+const Users: CollectionConfig = {
+  slug: 'users',
+  auth: true,
+  admin: {
+    useAsTitle: 'name',
+  },
   fields: [
-    // ... other fields
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+    },
     {
       name: 'profile',
       type: 'relationship',
       relationTo: 'profiles',
       hasMany: false,
-    }
+    },
   ],
   hooks: {
-    afterLogin: [syncProfile], // Make sure this is properly configured
-  }
+    afterLogin: [syncProfile],
+  },
 }
+
+export default Users

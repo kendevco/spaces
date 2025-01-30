@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { MemberRole } from '@/spaces/types'
 import { addToHomeSpace } from './hooks/addToHomeSpace'
-import { syncProfile } from './hooks/syncProfile'
+import { syncProfile, syncProfileOnLogin } from './hooks/syncProfile'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -118,5 +118,6 @@ export const Users: CollectionConfig = {
   timestamps: true,
   hooks: {
     afterChange: [addToHomeSpace, syncProfile],
+    afterLogin: [syncProfileOnLogin],
   },
 }
