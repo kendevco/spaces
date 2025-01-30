@@ -6,6 +6,8 @@ import Link from 'next/link'
 import React from 'react'
 import { AccountForm } from './AccountForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function Account() {
   const { user } = await getMeUser({
     nullUserRedirect: `/login?error=${encodeURIComponent(

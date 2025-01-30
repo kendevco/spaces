@@ -5,6 +5,9 @@ import { Analytics } from '@vercel/analytics/react'
 import { redirect } from 'next/navigation'
 import { getAuthenticatedUser } from './spaces/actions'
 
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
+
 export default async function SpacesLayout({ children }: { children: React.ReactNode }) {
   console.log('\n[SPACES_LAYOUT] Starting spaces layout render')
   try {
