@@ -950,7 +950,7 @@ export const ChatItem = ({
                     </FormItem>
                   )}
                 />
-                <Button disabled={form.formState.isSubmitting} size="sm" variant="primary">
+                <Button disabled={form.formState.isSubmitting} size="sm" variant="default">
                   Save
                 </Button>
               </form>

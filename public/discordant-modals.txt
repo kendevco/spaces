@@ -187,7 +187,7 @@ export const CreateChannelModal = () => {
               />
             </div>
             <DialogFooter className="bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666] px-6 py-4">
-              <Button variant="primary" disabled={isLoading}>
+              <Button variant="default" disabled={isLoading}>
                 Create
               </Button>
             </DialogFooter>
@@ -347,7 +347,7 @@ export const CreateServerModal = () => {
               </div>
               <DialogFooter className="bg-gradient-to-br from-[#7364c0]/10 to-[#02264a]/10 dark:from-[#000C2F]/10 dark:to-[#003666]/10 px-6 py-4">
                 <Button
-                  variant="primary"
+                  variant="default"
                   disabled={isLoading}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
                 >
@@ -833,7 +833,7 @@ export const EditChannelModal = () => {
                 />
               </div>
               <DialogFooter className="bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666] px-6 py-4">
-                <Button variant="primary" disabled={isLoading}>
+                <Button variant="default" disabled={isLoading}>
                   Save
                 </Button>
               </DialogFooter>
@@ -1003,7 +1003,7 @@ export const EditServerModal = () => {
               </div>
               <DialogFooter className="bg-zinc-800/50 px-6 py-4">
                 <Button
-                  variant="primary"
+                  variant="default"
                   disabled={isLoading}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:bg-zinc-500"
                 >
@@ -1162,7 +1162,7 @@ export const InitialModal = () => {
               </div>
               <DialogFooter className="bg-zinc-800/50 px-6 py-4">
                 <Button
-                  variant="primary"
+                  variant="default"
                   disabled={isLoading}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:bg-zinc-500"
                 >
@@ -1891,7 +1891,7 @@ export const MessageFileModal = () => {
               />
             </div>
             <DialogFooter className="bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666] px-6 py-4">
-              <Button variant="primary" disabled={isLoading}>
+              <Button variant="default" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Send
               </Button>
