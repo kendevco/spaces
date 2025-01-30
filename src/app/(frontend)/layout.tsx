@@ -6,6 +6,10 @@ import { cn } from '@/utilities/ui'
 import { InitTheme } from '@/providers/Theme/InitTheme'
 import { Providers } from '@/providers'
 import { Analytics } from '@vercel/analytics/react'
+import { headers } from 'next/headers'
+
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

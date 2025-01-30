@@ -31,6 +31,7 @@ const nextConfig = {
       },
     ],
   },
+  output: 'standalone',
 }
 
 export default withPayload(nextConfig)
