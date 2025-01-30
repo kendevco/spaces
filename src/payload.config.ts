@@ -64,6 +64,16 @@ export default buildConfig({
         },
       ],
     },
+    auth: {
+      lockTime: 15 * 60 * 1000,
+      maxLoginAttempts: 5,
+      verify: false,
+      cookies: {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        domain: process.env.VERCEL_URL ? `.${process.env.VERCEL_URL}` : undefined,
+      },
+    },
   },
   editor: defaultLexical,
   db: mongooseAdapter({
@@ -202,4 +212,13 @@ export default buildConfig({
   },
   sharp,
   debug: process.env.NODE_ENV === 'development',
+  csrf: [
+    'https://spaces.kendev.co',
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+    'http://localhost:3000',
+  ].filter(Boolean),
+  rateLimit: {
+    window: 15 * 60 * 1000,
+    max: 100,
+  },
 })

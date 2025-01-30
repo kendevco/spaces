@@ -102,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback<Login>(async ({ email, password }) => {
     try {
+      console.log('[AUTH] Attempting login with URL:', getClientSideURL())
       const res = await fetch(`${getClientSideURL()}/api/users/login`, {
         method: 'POST',
         credentials: 'include',
@@ -110,16 +111,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         body: JSON.stringify({ email, password }),
       })
+      console.log('[AUTH] Login response:', { status: res.status })
 
       const data = await res.json()
 
       if (!res.ok) {
-        const error = data?.errors?.[0]
-        setState(prev => ({
-          ...prev,
-          error: error?.message || 'An error occurred during login',
-          success: null
-        }))
+        // Handle locked account specifically
+        if (data?.errors?.[0]?.message?.includes('locked')) {
+          setState(prev => ({
+            ...prev,
+            error: 'Account is temporarily locked. Please try again later.',
+            success: null
+          }))
+        } else {
+          setState(prev => ({
+            ...prev,
+            error: data?.errors?.[0]?.message || 'Invalid login credentials',
+            success: null
+          }))
+        }
         return null
       }
 
@@ -141,10 +151,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }))
 
       return data.user
-    } catch (e) {
+    } catch (error) {
+      console.error('[AUTH] Login error:', error)
       setState(prev => ({
         ...prev,
-        error: e instanceof Error ? e.message : 'An error occurred',
+        error: error instanceof Error ? error.message : 'An error occurred',
         success: null
       }))
       return null
