@@ -1,5 +1,4 @@
 import { withPayload } from '@payloadcms/next/withPayload'
-
 import redirects from './redirects.js'
 
 const NEXT_PUBLIC_SERVER_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -8,9 +7,9 @@ const NEXT_PUBLIC_SERVER_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  reactStrictMode: true,
+  redirects,
   images: {
-    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'http',
@@ -18,19 +17,19 @@ const nextConfig = {
         port: '3000',
         pathname: '/media/**',
       },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/api/media/file/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/api/spaces-media/file/**',
+      },
     ],
-  },
-  reactStrictMode: true,
-  redirects,
-  experimental: {
-    // ... existing experimental config
-  },
-  unstable_excludeFiles: ['**/recover-password/**'],
-  generateStaticParams: async () => {
-    return {
-      dynamicParams: true, // Allow dynamic routes
-      excludePages: ['/recover-password'], // Exclude recover-password from static generation
-    }
   },
 }
 

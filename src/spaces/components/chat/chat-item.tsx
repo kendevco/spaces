@@ -1,33 +1,33 @@
 // path: src/components/Spaces/chat/chat-item.tsx
-"use client";
+'use client'
 
-import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { FileIcon, ShieldAlert, ShieldCheck } from "lucide-react";
-import { ExtendedMember, MemberRole } from "@/spaces/types";
-import { cn } from "@/utilities/cn";
+import { useState, Fragment } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { FileIcon, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { ExtendedMember, MemberRole } from '@/spaces/types'
+import { cn } from '@/utilities/cn'
 
-import { UserAvatar } from "@/spaces/components/user-avatar";
-import { ActionTooltip } from "@/spaces/components/action-tooltip";
-import { useModal } from "@/spaces/hooks/use-modal-store";
+import { UserAvatar } from '@/spaces/components/user-avatar'
+import { ActionTooltip } from '@/spaces/components/action-tooltip'
+import { useModal } from '@/spaces/hooks/use-modal-store'
 
 const roleIconMap: Record<MemberRole, React.ReactNode> = {
   [MemberRole.GUEST]: null,
   [MemberRole.MEMBER]: null,
   [MemberRole.MODERATOR]: <ShieldCheck className="w-4 h-4 ml-2 text-indigo-500" />,
   [MemberRole.ADMIN]: <ShieldAlert className="w-4 h-4 ml-2 text-rose-500" />,
-};
+}
 
 interface ChatItemProps {
-  id: string;
-  content: string | { root: { children: Array<{ text?: string }> } };
-  member: ExtendedMember;
-  timestamp: string;
-  fileUrl: string | null;
-  deleted: boolean;
-  currentMember: ExtendedMember;
-  isUpdated: boolean;
-  isLast?: boolean;
+  id: string
+  content: string | { root: { children: Array<{ text?: string }> } }
+  member: ExtendedMember
+  timestamp: string
+  fileUrl: string | null
+  deleted: boolean
+  currentMember: ExtendedMember
+  isUpdated: boolean
+  isLast?: boolean
 }
 
 export const ChatItem = ({
@@ -41,35 +41,64 @@ export const ChatItem = ({
   isUpdated,
   isLast,
 }: ChatItemProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const { onOpen } = useModal();
-  const router = useRouter();
-  const params = useParams();
+  const [isEditing, setIsEditing] = useState(false)
+  const { onOpen } = useModal()
+  const router = useRouter()
+  const params = useParams()
 
   const onMemberClick = () => {
     if (member.id === currentMember.id) {
-      return;
+      return
     }
-    router.push(`/spaces/${params?.spaceId}/conversations/${member.id}`);
-  };
+    router.push(`/spaces/${params?.spaceId}/conversations/${member.id}`)
+  }
 
-  const memberName = member?.profile?.name || "Unknown User";
-  const memberImageUrl = member?.profile?.imageUrl || null;
-  const memberInitial = memberName?.[0] || "?";
+  const memberName = member?.profile?.name || 'Unknown User'
+  const memberImageUrl = member?.profile?.imageUrl || null
+  const memberInitial = memberName?.[0] || '?'
 
   const messageContent = (() => {
     if (typeof content === 'string') {
-      return content;
+      return content
     }
 
     if (content?.root?.children) {
-      return content.root.children
-        .map(child => child.text || '')
-        .join('');
+      return content.root.children.map((child) => child.text || '').join('')
     }
 
-    return '';
-  })();
+    return ''
+  })()
+
+  const renderContent = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const parts = text.split(urlRegex)
+
+    // First split by URLs, then handle line breaks
+    const formattedParts = parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white underline break-all hover:text-white/90"
+          >
+            {part}
+          </a>
+        )
+      }
+      // Split by newlines and join with br tags
+      return part.split('\n').map((line, j) => (
+        <Fragment key={`${i}-${j}`}>
+          {line}
+          {j !== part.split('\n').length - 1 && <br />}
+        </Fragment>
+      ))
+    })
+
+    return formattedParts
+  }
 
   return (
     <div className="relative group flex items-center hover:bg-black/5 p-4 transition w-full">
@@ -84,30 +113,31 @@ export const ChatItem = ({
         <div className="flex flex-col w-full">
           <div className="flex items-center gap-x-2">
             <div className="flex items-center">
-              <p onClick={onMemberClick} className="font-semibold text-sm hover:underline cursor-pointer">
+              <p
+                onClick={onMemberClick}
+                className="font-semibold text-sm hover:underline cursor-pointer"
+              >
                 {memberName}
               </p>
               <ActionTooltip label={member?.role || 'member'}>
-                {roleIconMap[member?.role as MemberRole || MemberRole.MEMBER]}
+                {roleIconMap[(member?.role as MemberRole) || MemberRole.MEMBER]}
               </ActionTooltip>
             </div>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {timestamp}
-            </span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">{timestamp}</span>
           </div>
           {deleted ? (
             <div className="mt-2">
-              <p className="text-sm italic text-zinc-500">
-                This message has been deleted
-              </p>
+              <p className="text-sm italic text-zinc-500">This message has been deleted</p>
             </div>
           ) : (
             <div className="mt-2">
-              <p className={cn(
-                "text-sm text-zinc-600 dark:text-zinc-300",
-                "break-words whitespace-pre-wrap"
-              )}>
-                {messageContent || 'No content available'}
+              <p
+                className={cn(
+                  'text-sm text-zinc-600 dark:text-zinc-300',
+                  'break-words whitespace-pre-wrap',
+                )}
+              >
+                {messageContent ? renderContent(messageContent) : 'No content available'}
                 {isUpdated && !isEditing && (
                   <span className="text-[10px] mx-2 text-zinc-500 dark:text-zinc-400">
                     (edited)
@@ -130,5 +160,5 @@ export const ChatItem = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

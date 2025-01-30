@@ -18,7 +18,7 @@ export async function POST(req: Request) {
         firstName,
         lastName,
         name,
-        role: 'user',
+        role: 'member',
       },
     })
 

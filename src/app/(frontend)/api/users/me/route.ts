@@ -8,23 +8,30 @@ export async function GET() {
     const token = cookieStore.get('payload-token')?.value
 
     if (!token) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return NextResponse.json({ user: null }, { status: 401 })
     }
 
-    const payload = await getPayloadClient()
-    const { user } = await payload.auth({
-      headers: new Headers({
-        Authorization: `JWT ${token}`,
-      }),
-    })
+    try {
+      const payload = await getPayloadClient()
+      const { user } = await payload.auth({
+        headers: new Headers({
+          Authorization: `JWT ${token}`,
+        }),
+      })
 
-    if (!user) {
-      return new NextResponse('Invalid token', { status: 401 })
+      if (!user) {
+        return NextResponse.json({ user: null }, { status: 401 })
+      }
+
+      return NextResponse.json({ user })
+    } catch (authError) {
+      console.error('[USERS_ME] Auth error:', authError)
+      // Don't expose internal errors, return 401 for auth failures
+      return NextResponse.json({ user: null }, { status: 401 })
     }
-
-    return NextResponse.json({ user })
   } catch (error) {
     console.error('[USERS_ME]', error)
-    return new NextResponse('Internal error', { status: 500 })
+    // Return 401 instead of 500 for auth-related errors
+    return NextResponse.json({ user: null }, { status: 401 })
   }
 }

@@ -1,13 +1,7 @@
 // path: src/app/(spaces)/spaces/layout.tsx
 import type { Metadata } from 'next'
 import { NavigationSidebar } from '@/spaces/components/navigation/navigation-sidebar'
-import { cn } from '@/utilities/cn'
-import { GeistMono } from 'geist/font/mono'
-import { GeistSans } from 'geist/font/sans'
-import { Providers } from '@/providers'
-import { InitTheme } from '@/providers/Theme/InitTheme'
 import { Analytics } from '@vercel/analytics/react'
-import '@/app/(frontend)/globals.css'
 import { redirect } from 'next/navigation'
 import { getAuthenticatedUser } from './spaces/actions'
 

@@ -1,6 +1,7 @@
 // path: src/components/Spaces/space/space-sidebar.tsx
 'use client'
 
+import React from 'react'
 import { useEffect, useState } from 'react'
 import { SpaceHeader } from './space-header'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -31,7 +32,7 @@ const roleIconMap = {
   [MemberRole.MEMBER]: null,
 } as const
 
-export function SpaceSidebar({ spaceId }: SpaceSidebarProps) {
+export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -70,38 +71,52 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps) {
           channelCount: channels?.length,
         })
 
-        if (mounted) {
-          setSpace(space)
-          setMembers(members || [])
-          const channelsData = {
-            text: channels.filter((channel: ExtendedChannel) => channel.type === ChannelType.TEXT),
-            audio: channels.filter(
-              (channel: ExtendedChannel) => channel.type === ChannelType.AUDIO,
-            ),
-            video: channels.filter(
-              (channel: ExtendedChannel) => channel.type === ChannelType.VIDEO,
-            ),
+        if (!mounted) return // Early return if unmounted
+
+        setSpace(space)
+        // Transform members to ExtendedMember format
+        const extendedMembers = (members ?? []).map((member) => {
+          const userData = typeof member.user === 'string' ? null : member.user
+          return {
+            ...member,
+            profile: {
+              id: userData?.id ?? '',
+              name:
+                userData?.name ?? `${userData?.firstName ?? ''} ${userData?.lastName ?? ''}`.trim(),
+              email: userData?.email ?? '',
+              imageUrl: null,
+              createdAt: userData?.createdAt ?? '',
+              updatedAt: userData?.updatedAt ?? '',
+            },
           }
-          console.log('[SPACE_SIDEBAR] Channels after filtering:', {
-            text: channelsData.text.length,
-            audio: channelsData.audio.length,
-            video: channelsData.video.length,
-            rawChannels: channels.map((c: ExtendedChannel) => ({
-              id: c.id,
-              name: c.name,
-              type: c.type,
-            })),
-          })
-          setChannels(channelsData)
-          setLoading(false)
+        }) as ExtendedMember[]
+        setMembers(extendedMembers)
+
+        const channelsData = {
+          text: channels.filter((channel) => channel.type === ChannelType.TEXT),
+          audio: channels.filter((channel) => channel.type === ChannelType.AUDIO),
+          video: channels.filter((channel) => channel.type === ChannelType.VIDEO),
         }
+
+        console.log('[SPACE_SIDEBAR] Channels after filtering:', {
+          text: channelsData.text.length,
+          audio: channelsData.audio.length,
+          video: channelsData.video.length,
+          rawChannels: channels.map((c) => ({
+            id: c.id,
+            name: c.name,
+            type: c.type,
+          })),
+        })
+        setChannels(channelsData as { text: ExtendedChannel[]; audio: ExtendedChannel[]; video: ExtendedChannel[] })
+        setLoading(false)
       } catch (error) {
         console.error('[SPACE_SIDEBAR] Error:', error)
         setLoading(false)
       }
     }
 
-    fetchData()
+    void fetchData() // Handle the Promise
   }, [spaceId, mounted, user])
 
   if (loading) {
@@ -113,7 +128,7 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps) {
   }
 
   if (!space || !user) {
-    return null
+    return <div>Loading...</div>
   }
 
   const currentMember = members.find(
@@ -121,7 +136,7 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps) {
   )
 
   if (!currentMember) {
-    return null
+    return <div>Loading...</div>
   }
 
   const otherMembers = members.filter(

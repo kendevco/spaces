@@ -15,46 +15,92 @@ interface MediaRoomProps {
 
 export const MediaRoom = ({ chatId, video, audio }: MediaRoomProps) => {
   const { user } = useUser()
-  const [token, setToken] = useState('')
+  const [token, setToken] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
 
     // Get user display name with fallbacks
-    const displayName =
-      user.name || // Try name first
-      `${user.firstName || ''} ${user.lastName || ''}`.trim() || // Then first+last
-      user.email?.split('@')[0] || // Then email username
-      user.id // Finally, use ID as last resort
+    const displayName = getDisplayName(user)
 
-    const getToken = async () => {
+    const connectToRoom = async () => {
       try {
+        console.log('[LIVEKIT] Connecting to room:', {
+          chatId,
+          displayName,
+          hasUser: !!user,
+        })
+
         const response = await fetch(
           `/api/livekit?room=${chatId}&username=${encodeURIComponent(displayName)}`,
         )
-        const data = await response.json()
-        setToken(data.token.toString())
+
+        if (!response.ok) {
+          const error = await response.text()
+          throw new Error(error || `Failed to get token: ${response.status}`)
+        }
+
+        // Get token as plain text
+        const token = await response.text()
+
+        if (!token) {
+          throw new Error('No token received from server')
+        }
+
+        console.log('[LIVEKIT] Got token:', {
+          tokenLength: token.length,
+          tokenStart: token.substring(0, 10) + '...',
+        })
+
+        setToken(token)
+        setError(null)
       } catch (error) {
-        console.error('LiveKit token error:', error)
+        console.error('[LIVEKIT] Token error:', error)
+        setError((error as Error).message)
       }
     }
 
-    getToken()
+    connectToRoom()
   }, [user, chatId])
 
-  if (!token) {
+  const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL
+  if (!serverUrl) {
+    console.error('[LIVEKIT] Missing NEXT_PUBLIC_LIVEKIT_URL')
+    return null
+  }
+
+  // Show error state
+  if (error) {
     return (
       <div className="flex flex-col flex-1 justify-center items-center">
-        <Loader2 className="h-7 w-7 text-zinc-500 animate-spin my-4" />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Loading...</p>
+        <p className="text-xs text-rose-500">Error: {error}</p>
       </div>
     )
   }
 
+  // Show loading state while waiting for token
+  if (token === '') {
+    return (
+      <div className="flex flex-col flex-1 justify-center items-center">
+        <Loader2 className="h-7 w-7 text-zinc-500 animate-spin my-4" />
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">Loading media room...</p>
+      </div>
+    )
+  }
+
+  console.log('[LIVEKIT] Rendering LiveKitRoom:', {
+    serverUrl,
+    tokenLength: token.length,
+    tokenStart: token.substring(0, 10) + '...',
+    video,
+    audio,
+  })
+
   return (
     <LiveKitRoom
       data-lk-theme="default"
-      serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+      serverUrl={serverUrl}
       token={token}
       connect={true}
       video={video}
@@ -62,5 +108,15 @@ export const MediaRoom = ({ chatId, video, audio }: MediaRoomProps) => {
     >
       <VideoConference />
     </LiveKitRoom>
+  )
+}
+
+// Helper function to get display name from Payload User
+function getDisplayName(user: User): string {
+  return (
+    user.name || // Try name first
+    `${user.firstName || ''} ${user.lastName || ''}`.trim() || // Then first+last
+    user.email?.split('@')[0] || // Then email username
+    user.id // Finally, use ID as last resort
   )
 }

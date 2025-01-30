@@ -20,6 +20,13 @@ type Login = (args: { email: string; password: string }) => Promise<User> // esl
 
 type Logout = () => Promise<void>
 
+type AuthState = {
+  error: string | null
+  success: string | null
+  status: 'loggedIn' | 'loggedOut' | undefined
+  user?: User | null
+}
+
 type AuthContext = {
   create: Create
   forgotPassword: ForgotPassword
@@ -29,6 +36,8 @@ type AuthContext = {
   setUser: (user: User | null) => void // eslint-disable-line no-unused-vars
   status: 'loggedIn' | 'loggedOut' | undefined
   user?: User | null
+  error: string | null
+  success: string | null
 }
 
 const Context = createContext({} as AuthContext)
@@ -42,13 +51,14 @@ export const useAuth = () => {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>()
-
-  // used to track the single event of logging in or logging out
-  // useful for `useEffect` hooks that should only run once
-  const [status, setStatus] = useState<'loggedIn' | 'loggedOut' | undefined>()
+  const [state, setState] = useState<AuthState>({
+    error: null,
+    success: null,
+    status: undefined,
+    user: undefined,
+  })
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-
   const [skipAuthCheck, setSkipAuthCheck] = useState(false)
 
   const create = useCallback<Create>(async (args) => {
@@ -73,69 +83,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user data received')
       }
 
-      setUser(createdUser)
-      setStatus('loggedIn')
+      setState(prev => ({
+        ...prev,
+        user: createdUser,
+        status: 'loggedIn',
+        error: null,
+        success: 'Successfully created account'
+      }))
     } catch (e: any) {
       console.error('Create account error:', e)
-      throw new Error(e?.message || 'An error occurred while creating your account.')
+      setState(prev => ({
+        ...prev,
+        error: e instanceof Error ? e.message : 'An error occurred while creating your account.',
+        success: null
+      }))
     }
   }, [])
 
-  const login = useCallback<Login>(async (args) => {
-    console.log('[AUTH_PROVIDER] Starting login request with email:', args.email)
+  const login = useCallback<Login>(async ({ email, password }) => {
     try {
-      const loginUrl = `${getClientSideURL()}/api/users/login`
-      console.log('[AUTH_PROVIDER] Making request to:', loginUrl)
-
-      const res = await fetch(loginUrl, {
-        body: JSON.stringify(args),
+      const res = await fetch(`${getClientSideURL()}/api/users/login`, {
+        method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        method: 'POST',
+        body: JSON.stringify({ email, password }),
       })
 
-      console.log('[AUTH_PROVIDER] Response status:', res.status)
-      const text = await res.text()
-      console.log('[AUTH_PROVIDER] Raw response:', text)
-
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch (e) {
-        console.error('[AUTH_PROVIDER] Failed to parse response:', e)
-        throw new Error(text || 'Invalid response from server')
-      }
-
-      console.log('[AUTH_PROVIDER] Parsed response data:', data)
+      const data = await res.json()
 
       if (!res.ok) {
-        const errorMessage = data?.errors?.[0]?.message || 'Invalid credentials'
-        console.error('[AUTH_PROVIDER] Login failed:', { status: res.status, error: errorMessage })
-        throw new Error(errorMessage)
+        const error = data?.errors?.[0]
+        setState(prev => ({
+          ...prev,
+          error: error?.message || 'An error occurred during login',
+          success: null
+        }))
+        return null
       }
 
-      const { user: loggedInUser } = data
-      if (!loggedInUser) {
-        console.error('[AUTH_PROVIDER] No user data in response')
-        throw new Error('No user data received')
+      if (!data.user) {
+        setState(prev => ({
+          ...prev,
+          error: 'No user data received',
+          success: null
+        }))
+        return null
       }
 
-      console.log('[AUTH_PROVIDER] Login successful, setting user:', loggedInUser)
-      setUser(loggedInUser)
-      setStatus('loggedIn')
-      return loggedInUser
-    } catch (e: any) {
-      console.error('[AUTH_PROVIDER] Login error:', e)
-      throw new Error(e?.message || 'Invalid login credentials')
+      setState(prev => ({
+        ...prev,
+        user: data.user,
+        status: 'loggedIn',
+        error: null,
+        success: 'Successfully logged in'
+      }))
+
+      return data.user
+    } catch (e) {
+      setState(prev => ({
+        ...prev,
+        error: e instanceof Error ? e.message : 'An error occurred',
+        success: null
+      }))
+      return null
     }
   }, [])
 
   const logout = useCallback<Logout>(async () => {
     try {
       setSkipAuthCheck(true)
-      const res = await fetch(`${getClientSideURL()}/api/users/logout`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/users/logout`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -144,12 +163,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
 
       if (!res.ok) {
-        throw new Error('Failed to logout')
+        // Don't throw error on 401 (already logged out)
+        if (res.status !== 401) {
+          throw new Error('Unable to sign out. Please try again.')
+        }
       }
 
       // Clear auth state
-      setUser(null)
-      setStatus('loggedOut')
+      setState(prev => ({
+        ...prev,
+        user: null,
+        status: 'loggedOut',
+        error: null,
+        success: null
+      }))
       router.replace('/login')
     } catch (error) {
       console.error('Logout error:', error)
@@ -161,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchMe = async () => {
       if (skipAuthCheck) {
         setSkipAuthCheck(false)
+        setIsLoading(false)
         return
       }
 
@@ -175,9 +203,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
 
         if (!meRes.ok) {
-          console.log('[AUTH_PROVIDER] No authenticated user found')
-          setUser(null)
-          setStatus('loggedOut')
+          if (meRes.status === 401) {
+            console.log('[AUTH_PROVIDER] User not authenticated')
+            setState(prev => ({
+              ...prev,
+              user: null,
+              status: 'loggedOut',
+              error: null,
+              success: null
+            }))
+          } else {
+            console.error('[AUTH_PROVIDER] Error response:', meRes.status)
+            throw new Error(`HTTP error! status: ${meRes.status}`)
+          }
+          setIsLoading(false)
           return
         }
 
@@ -186,22 +225,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (data.user) {
           console.log('[AUTH_PROVIDER] Setting authenticated user')
-          setUser(data.user)
-          setStatus('loggedIn')
+          setState(prev => ({
+            ...prev,
+            user: data.user,
+            status: 'loggedIn',
+            error: null,
+            success: 'Successfully authenticated'
+          }))
         } else {
           console.log('[AUTH_PROVIDER] No user data found')
-          setUser(null)
-          setStatus('loggedOut')
+          setState(prev => ({
+            ...prev,
+            user: null,
+            status: 'loggedOut',
+            error: null,
+            success: null
+          }))
         }
       } catch (error) {
         console.error('[AUTH_PROVIDER] Error fetching user:', error)
-        setUser(null)
-        setStatus('loggedOut')
+        setState(prev => ({
+          ...prev,
+          user: null,
+          status: 'loggedOut',
+          error: error instanceof Error ? error.message : 'An error occurred',
+          success: null
+        }))
+      } finally {
+        setIsLoading(false)
       }
     }
 
     void fetchMe()
-  }, [])
+  }, [skipAuthCheck])
 
   const forgotPassword = useCallback<ForgotPassword>(async ({ email }) => {
     try {
@@ -241,24 +297,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(errors?.[0]?.message ?? 'Error resetting password')
       }
 
-      setUser(resetUser)
-      setStatus('loggedIn')
+      setState(prev => ({
+        ...prev,
+        user: resetUser,
+        status: 'loggedIn',
+        error: null,
+        success: 'Successfully reset password'
+      }))
     } catch (e) {
       throw new Error('An error occurred while resetting your password.')
     }
   }, [])
 
+  // Don't render children until initial auth check is complete
+  if (isLoading) {
+    return null // Or a loading spinner
+  }
+
   return (
     <Context.Provider
       value={{
+        ...state,
         create,
         forgotPassword,
         login,
         logout,
         resetPassword,
-        setUser,
-        status,
-        user,
+        setUser: (user) => setState(prev => ({ ...prev, user })),
       }}
     >
       {children}

@@ -1,36 +1,21 @@
 import type { Metadata } from 'next'
-
-import { cn } from '@/utilities/ui'
-import { GeistMono } from 'geist/font/mono'
-import { GeistSans } from 'geist/font/sans'
-import React from 'react'
-
 import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/Footer/Component'
 import { Header } from '@/Header/Component'
-import { Providers } from '@/providers'
-import { InitTheme } from '@/providers/Theme/InitTheme'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { draftMode } from 'next/headers'
-
-import '@/app/(frontend)/globals.css'
 import { getServerSideURL } from '@/utilities/getURL'
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function WebsiteLayout({ children }: { children: React.ReactNode }) {
   const { isEnabled } = await draftMode()
 
   return (
-    <Providers>
-      <AdminBar
-        adminBarProps={{
-          preview: isEnabled,
-        }}
-      />
-
+    <div className="flex min-h-screen flex-col">
+      <AdminBar adminBarProps={{ preview: isEnabled }} />
       <Header />
-      {children}
+      <main className="flex-1">{children}</main>
       <Footer />
-    </Providers>
+    </div>
   )
 }
 

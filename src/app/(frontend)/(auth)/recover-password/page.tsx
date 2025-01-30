@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import React from 'react'
 import { RecoverPasswordForm } from './RecoverPasswordForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function RecoverPassword() {
   return (
     <div className="container relative h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">

@@ -6,6 +6,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Plus, Users } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SpacesPage() {
   try {
     const { user } = await getAuthenticatedUser()

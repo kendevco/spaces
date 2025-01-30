@@ -335,7 +335,14 @@ export interface Category {
  */
 export interface User {
   id: string;
-  role: 'admin' | 'moderator' | 'user';
+  /**
+   * User system role - controls system-wide permissions
+   */
+  role: 'admin' | 'moderator' | 'member' | 'guest';
+  /**
+   * Is this user authorized to access the system?
+   */
+  authorized?: boolean | null;
   firstName: string;
   lastName: string;
   name?: string | null;
@@ -343,35 +350,19 @@ export interface User {
    * Spaces this user belongs to
    */
   spaces?: (string | Space)[] | null;
-  /**
-   * AI-related preferences and settings
-   */
-  aiPreferences?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * API key for programmatic access
-   */
-  apiKey?: string | null;
-  /**
-   * URL to user profile image
-   */
-  imageUrl?: string | null;
   updatedAt: string;
   createdAt: string;
+  /**
+   * User email address - must be unique
+   */
   email: string;
   resetPasswordToken?: string | null;
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
-  _verified?: boolean | null;
-  _verificationToken?: string | null;
+  /**
+   * Number of failed login attempts
+   */
   loginAttempts?: number | null;
   lockUntil?: string | null;
   password?: string | null;
@@ -1510,13 +1501,11 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   role?: T;
+  authorized?: T;
   firstName?: T;
   lastName?: T;
   name?: T;
   spaces?: T;
-  aiPreferences?: T;
-  apiKey?: T;
-  imageUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -1524,8 +1513,6 @@ export interface UsersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
-  _verified?: T;
-  _verificationToken?: T;
   loginAttempts?: T;
   lockUntil?: T;
 }

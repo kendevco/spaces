@@ -10,9 +10,6 @@ export type SafeUser = {
   role: 'admin' | 'member'
   imageUrl: string | null
   spaces: string[] | null
-  aiPreferences?: Record<string, unknown>
-  _verified?: boolean
-  apiKey?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -41,12 +38,6 @@ export const transformToSafeUser = (user: User | string): SafeUser => {
         ? user.spaces.map((space) => (typeof space === 'string' ? space : (space as Space).id))
         : [typeof user.spaces === 'string' ? user.spaces : (user.spaces as Space).id]
       : null,
-    aiPreferences:
-      typeof user.aiPreferences === 'object' && user.aiPreferences !== null
-        ? (user.aiPreferences as Record<string, unknown>)
-        : {},
-    _verified: user._verified || false,
-    apiKey: user.apiKey || null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   }

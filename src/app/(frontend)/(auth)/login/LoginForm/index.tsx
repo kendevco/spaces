@@ -18,7 +18,7 @@ type FormData = {
 export const LoginForm: React.FC = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login } = useAuth()
+  const { login, error } = useAuth()
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit: handleFormSubmit } = useForm<FormData>()
 
@@ -27,21 +27,25 @@ export const LoginForm: React.FC = () => {
 
     try {
       const user = await login(data)
-      if (!user) {
-        throw new Error('Login failed')
+      if (user) {
+        const redirect = searchParams.get('redirect')
+        toast({
+          title: 'Success',
+          description: 'Logged in successfully!',
+        })
+        router.push(redirect || '/spaces')
+      } else if (error) {
+        toast({
+          title: 'Error',
+          description: error,
+          variant: 'destructive',
+        })
       }
-
-      const redirect = searchParams.get('redirect')
-      toast({
-        title: 'Success',
-        description: 'Logged in successfully!',
-      })
-      router.push(redirect || '/spaces')
-    } catch (err: any) {
-      console.error('Login error:', err)
+    } catch (err) {
+      console.error('Unexpected error:', err)
       toast({
         title: 'Error',
-        description: err?.message || 'Failed to login',
+        description: 'An unexpected error occurred',
         variant: 'destructive',
       })
     } finally {
@@ -51,6 +55,7 @@ export const LoginForm: React.FC = () => {
 
   return (
     <form onSubmit={handleFormSubmit(onSubmit)} className="max-w-md space-y-4">
+      {error && <div className="p-2 text-red-500 bg-red-100/10 rounded">{error}</div>}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

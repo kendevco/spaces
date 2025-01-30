@@ -25,14 +25,12 @@ export const ChannelType = {
 export type ChannelType = (typeof ChannelType)[keyof typeof ChannelType]
 
 // Member Roles
-export const MemberRole = {
-  ADMIN: 'admin',
-  MODERATOR: 'moderator',
-  GUEST: 'guest',
-  MEMBER: 'member',
-} as const
-
-export type MemberRole = (typeof MemberRole)[keyof typeof MemberRole]
+export enum MemberRole {
+  ADMIN = 'admin',
+  MODERATOR = 'moderator',
+  MEMBER = 'member',
+  GUEST = 'guest'
+}
 
 // Modal Types
 export const ModalType = {

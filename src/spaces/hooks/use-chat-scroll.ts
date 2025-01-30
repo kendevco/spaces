@@ -18,50 +18,64 @@ export const useChatScroll = ({
   initialLoad,
 }: ChatScrollProps) => {
   const userScrolledRef = useRef(false)
+  const isLoadingMoreRef = useRef(false)
+  const loadMoreClickedRef = useRef(false)
 
-  // Handle infinite scroll up
+  // Handle infinite scroll up and button click
   useEffect(() => {
     const topDiv = chatRef?.current
     if (!topDiv) return
 
     const handleScroll = () => {
       const scrollTop = topDiv.scrollTop
+      const distanceFromBottom = topDiv.scrollHeight - topDiv.scrollTop - topDiv.clientHeight
 
       // Set userScrolled to true when user scrolls up
-      if (!userScrolledRef.current && scrollTop < topDiv.scrollHeight - topDiv.clientHeight) {
+      if (!userScrolledRef.current && distanceFromBottom > 100) {
         userScrolledRef.current = true
       }
 
-      if (scrollTop === 0 && shouldLoadMore) {
+      // Reset userScrolled when user scrolls back to bottom
+      if (userScrolledRef.current && distanceFromBottom <= 100) {
+        userScrolledRef.current = false
+      }
+
+      if (scrollTop === 0 && shouldLoadMore && !isLoadingMoreRef.current) {
+        isLoadingMoreRef.current = true
+        loadMoreClickedRef.current = false
         const currentHeight = topDiv.scrollHeight
+        const currentScrollTop = topDiv.scrollTop
+
         loadMore()
+
         // After loading, maintain scroll position
         setTimeout(() => {
           const newHeight = topDiv.scrollHeight
-          if (currentHeight && newHeight) {
-            topDiv.scrollTop = newHeight - currentHeight
-          }
+          const heightDifference = newHeight - currentHeight
+          topDiv.scrollTop = heightDifference + currentScrollTop
+          isLoadingMoreRef.current = false
         }, 100)
       }
     }
 
     topDiv.addEventListener('scroll', handleScroll)
-    return () => {
-      topDiv.removeEventListener('scroll', handleScroll)
-    }
+    return () => topDiv.removeEventListener('scroll', handleScroll)
   }, [shouldLoadMore, loadMore, chatRef])
 
   // Handle auto-scroll for new messages
   useEffect(() => {
     const bottomDiv = bottomRef?.current
     const topDiv = chatRef?.current
-    if (!topDiv || !bottomDiv) return
+    if (!topDiv || !bottomDiv || isLoadingMoreRef.current || loadMoreClickedRef.current) return
 
     const shouldAutoScroll = () => {
-      // Only auto-scroll if it's initial load or user hasn't scrolled up
+      // Always scroll on initial load
       if (initialLoad) return true
+
+      // Don't auto-scroll if user has scrolled up and is reading history
       if (userScrolledRef.current) return false
 
+      // Auto-scroll if user is near bottom
       const distanceFromBottom = topDiv.scrollHeight - topDiv.scrollTop - topDiv.clientHeight
       return distanceFromBottom <= 100
     }
@@ -77,4 +91,18 @@ export const useChatScroll = ({
       )
     }
   }, [bottomRef, chatRef, count, initialLoad])
+
+  // Expose a function to handle load more button clicks
+  const handleLoadMoreClick = () => {
+    if (!isLoadingMoreRef.current && shouldLoadMore) {
+      isLoadingMoreRef.current = true
+      loadMoreClickedRef.current = true
+      loadMore()
+      setTimeout(() => {
+        isLoadingMoreRef.current = false
+      }, 100)
+    }
+  }
+
+  return { handleLoadMoreClick }
 }

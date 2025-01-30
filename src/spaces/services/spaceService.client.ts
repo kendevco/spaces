@@ -1,78 +1,49 @@
-import { Space } from '@/payload-types'
-import { getClientSideURL } from '@/utilities/getURL'
-import { ExtendedChannel, ExtendedMember } from '../types'
+import { getSpaceById, getSpaces, getSpaceData, createSpace } from '../actions/spaces'
+import type { Space, Channel, Member } from '@/payload-types'
 
-export const spaceService = {
+class SpaceService {
   async getUserSpaces(): Promise<Space[]> {
-    try {
-      const response = await fetch(
-        `${getClientSideURL()}/api/spaces?depth=2&populate[image][select][]=url`,
-        {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          cache: 'no-store',
-          next: { revalidate: 0 },
-        },
-      )
-
-      if (!response.ok) {
-        console.error('[SPACE_SERVICE] Failed to fetch spaces:', response.status)
-        return []
-      }
-
-      const data = await response.json()
-      return data.docs || []
-    } catch (error) {
-      console.error('[SPACE_SERVICE] Error fetching spaces:', error)
-      return []
+    const result = await getSpaces()
+    if (!result.success) {
+      throw new Error(result.error)
     }
-  },
+    return result.data ?? []
+  }
+
+  async getSpaceById(spaceId: string): Promise<Space> {
+    const result = await getSpaceById(spaceId)
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Space not found')
+    }
+    return result.data
+  }
+
+  async getSpaceData(spaceId: string): Promise<{
+    space: Space
+    members: Member[]
+    channels: Channel[]
+  }> {
+    const result = await getSpaceData(spaceId)
+    if (!result.success || !result.space) {
+      throw new Error(result.error || 'Failed to fetch space data')
+    }
+    return {
+      space: result.space,
+      members: result.members ?? [],
+      channels: result.channels ?? [],
+    }
+  }
 
   async createSpace(data: { name: string; imageUrl: string }): Promise<Space> {
-    const response = await fetch(`${getClientSideURL()}/api/spaces`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
+    const result = await createSpace({
+      name: data.name,
+      imageUrl: data.imageUrl,
     })
-
-    if (!response.ok) {
-      throw new Error('Failed to create space')
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to create space')
     }
-
-    return response.json()
-  },
-
-  async getSpaceData(spaceId: string) {
-    try {
-      // Fetch space data with channels and members in a single request
-      const response = await fetch(`${getClientSideURL()}/api/spaces/${spaceId}?depth=2`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-        next: { revalidate: 0 },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch space data')
-      }
-
-      const space = await response.json()
-
-      return {
-        space,
-        channels: space.channels || [],
-        members: space.members || [],
-      }
-    } catch (error) {
-      console.error('[SPACE_SERVICE]', error)
-      throw error
-    }
-  },
+    return result.data
+  }
 }
+
+export const spaceService = new SpaceService()
