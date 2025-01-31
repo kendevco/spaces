@@ -8,8 +8,7 @@ export async function getCurrentUser(): Promise<User | null> {
     const cookieStore = await cookies()
     const token = cookieStore.get('payload-token')
 
-    if (!token) {
-      logError('getCurrentUser', 'No token found')
+    if (!token?.value) {
       return null
     }
 
@@ -17,16 +16,23 @@ export async function getCurrentUser(): Promise<User | null> {
     headersList.set('Authorization', `JWT ${token.value}`)
 
     const payload = await getPayloadClient()
-    const { user } = await payload.auth({ headers: headersList })
 
-    if (!user) {
-      logError('getCurrentUser', 'No user found with token')
+    try {
+      const { user } = await payload.auth({
+        headers: headersList,
+      })
+      return user || null
+    } catch (authError: any) {
+      // Handle invalid/expired token
+      if (authError?.message?.includes('JSON')) {
+        cookieStore.delete('payload-token')
+      }
       return null
     }
-
-    return user
-  } catch (error) {
-    logError('getCurrentUser', error)
+  } catch (error: any) {
+    if (!error.message?.includes('No token') && !error.message?.includes('Invalid token')) {
+      logError('getCurrentUser', error)
+    }
     return null
   }
 }

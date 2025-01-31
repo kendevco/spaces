@@ -1,35 +1,15 @@
-import type { User } from '@/payload-types'
 import type { Access } from 'payload'
-import { getPayloadClient } from '../utilities/payload/getPayloadClient'
+import type { User } from '@/payload-types'
+import { MemberRole } from '@/spaces/types'
 
+// For Payload access control
 export const isAdmin: Access = async ({ req: { user } }) => {
   if (!user) return false
+  return user.role === MemberRole.ADMIN
+}
 
-  try {
-    const payload = await getPayloadClient()
-    const membersResponse = await payload.find({
-      collection: 'members',
-      where: {
-        and: [
-          {
-            user: {
-              equals: user.id,
-            },
-          },
-          {
-            role: {
-              equals: 'admin',
-            },
-          },
-        ],
-      },
-      depth: 1,
-      limit: 1,
-    })
-
-    return membersResponse.docs.length > 0
-  } catch (error) {
-    console.error('Error checking admin status:', error)
-    return false
-  }
+// For direct user checks
+export const isUserAdmin = async (user: User | null) => {
+  if (!user) return false
+  return user.role === MemberRole.ADMIN
 }

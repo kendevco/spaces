@@ -1,8 +1,8 @@
-import type { AfterChangeHook, AfterLoginHook } from 'payload/dist/collections/config/types'
-import type { User, Profile, Media } from '@/payload-types'
+import type { CollectionAfterChangeHook, CollectionAfterLoginHook } from 'payload'
+import type { User } from '@/payload-types'
 
 // For afterChange hook
-export const syncProfile: AfterChangeHook = async ({
+export const syncProfile: CollectionAfterChangeHook = async ({
   doc,
   operation,
   req: { payload },
@@ -86,6 +86,17 @@ export const syncProfile: AfterChangeHook = async ({
 }
 
 // For afterLogin hook
-export const syncProfileOnLogin: AfterLoginHook = async ({ req: { payload }, user }) => {
-  return syncProfile({ doc: user, operation: 'update', req: { payload }, previousDoc: user })
+export const syncProfileOnLogin: CollectionAfterLoginHook = async ({
+  collection, // Get collection from hook args
+  req,
+  user,
+}) => {
+  return syncProfile({
+    doc: user,
+    operation: 'update',
+    req,
+    previousDoc: user,
+    collection,
+    context: {},
+  })
 }

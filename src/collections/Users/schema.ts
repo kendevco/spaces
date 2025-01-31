@@ -1,5 +1,5 @@
 import { CollectionConfig } from 'payload'
-import { syncProfile } from './hooks/syncProfile'
+import { syncProfileOnLogin } from './hooks/syncProfile'
 
 const Users: CollectionConfig = {
   slug: 'users',
@@ -21,7 +21,7 @@ const Users: CollectionConfig = {
     },
   ],
   hooks: {
-    afterLogin: [syncProfile],
+    afterLogin: [syncProfileOnLogin],
   },
 }
 
