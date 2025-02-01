@@ -39,6 +39,7 @@ export const syncProfile: CollectionAfterChangeHook = async ({
             equals: user.id,
           },
         },
+        overrideAccess: true,
       })
 
       // Required fields for Profile creation/update
