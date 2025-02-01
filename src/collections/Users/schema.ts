@@ -20,9 +20,6 @@ const Users: CollectionConfig = {
       hasMany: false,
     },
   ],
-  hooks: {
-    afterLogin: [syncProfileOnLogin],
-  },
 }
 
 export default Users

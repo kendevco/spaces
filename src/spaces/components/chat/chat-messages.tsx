@@ -14,20 +14,18 @@ import { ChatWelcome } from './chat-welcome'
 
 const DATE_FORMAT = 'd MMM yyyy, HH:mm'
 
-interface ChatMessagesProps {
+export interface ChatMessagesProps {
   name: string
-  member: ExtendedMember
+  member: any // update with actual type
   chatId: string
   type: 'channel' | 'conversation'
   apiUrl: string
-  paramKey: 'channelId' | 'conversationId'
+  paramKey: string
   paramValue: string
-  socketUrl: string
-  socketQuery: {
-    channelId?: string
-    conversationId?: string
-    spaceId?: string
-  }
+  currentSpace?: { id: string; [key: string]: any }
+  currentChannel?: { id: string; [key: string]: any }
+  socketUrl?: string
+  socketQuery?: Record<string, string>
 }
 
 interface MessageWithMember extends Omit<Message, 'member'> {
@@ -45,6 +43,8 @@ export const ChatMessages = ({
   apiUrl,
   paramKey,
   paramValue,
+  currentSpace,
+  currentChannel,
   socketUrl,
   socketQuery,
 }: ChatMessagesProps) => {
@@ -54,7 +54,7 @@ export const ChatMessages = ({
   const { messages, hasMore, isLoading, loadMore, error } = useMessages({
     chatId,
     type,
-    spaceId: socketQuery.spaceId || '',
+    spaceId: socketQuery?.spaceId || '',
   })
 
   useChatScroll({
@@ -66,7 +66,7 @@ export const ChatMessages = ({
     initialLoad: true,
   })
 
-  if (!socketQuery.spaceId) {
+  if (type === 'channel' && (!socketQuery?.spaceId || !currentSpace || !currentChannel)) {
     return null
   }
 
@@ -140,6 +140,14 @@ export const ChatMessages = ({
                 timestamp={format(new Date(message.createdAt), DATE_FORMAT)}
                 isUpdated={message.isUpdated ?? false}
                 isLast={false}
+                socketUrl={
+                  type === 'channel' ? process.env.NEXT_PUBLIC_SOCKET_URL || '' : undefined
+                }
+                socketQuery={
+                  type === 'channel'
+                    ? { spaceId: currentSpace!.id, channelId: currentChannel!.id }
+                    : undefined
+                }
               />
             )
           })}

@@ -1,5 +1,9 @@
 import type { CollectionAfterChangeHook, CollectionAfterLoginHook } from 'payload'
+<<<<<<< HEAD
 import type { User } from '@/payload-types'
+=======
+import type { User, Profile, Media } from '@/payload-types'
+>>>>>>> b72e327 (Stabilizing and bug killing .10)
 
 // For afterChange hook
 export const syncProfile: CollectionAfterChangeHook = async ({
@@ -86,6 +90,7 @@ export const syncProfile: CollectionAfterChangeHook = async ({
 }
 
 // For afterLogin hook
+<<<<<<< HEAD
 export const syncProfileOnLogin: CollectionAfterLoginHook = async ({
   collection, // Get collection from hook args
   req,
@@ -99,4 +104,10 @@ export const syncProfileOnLogin: CollectionAfterLoginHook = async ({
     collection,
     context: {},
   })
+=======
+export const syncProfileOnLogin: CollectionAfterLoginHook = async ({ req: { payload }, user }) => {
+  // Since the afterChange hook already handles syncing,
+  // simply return the user to avoid triggering duplicate updates.
+  return user
+>>>>>>> b72e327 (Stabilizing and bug killing .10)
 }

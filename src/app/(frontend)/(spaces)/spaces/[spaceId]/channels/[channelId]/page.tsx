@@ -110,7 +110,7 @@ const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-screen">
       <ChatHeader
         spaceId={spaceId}
         name={channel.name}
@@ -135,6 +135,8 @@ const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
             }}
             paramKey="channelId"
             paramValue={channelId}
+            currentSpace={space}
+            currentChannel={channel}
           />
           <ChatInput name={channel.name} type="channel" spaceId={spaceId} chatId={channelId} />
         </>

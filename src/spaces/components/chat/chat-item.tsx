@@ -1,11 +1,19 @@
 // path: src/components/Spaces/chat/chat-item.tsx
 'use client'
 
-import { useState, Fragment } from 'react'
+import { useState, Fragment, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { FileIcon, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { FileIcon, ShieldAlert, ShieldCheck, Edit, Trash } from 'lucide-react'
 import { ExtendedMember, MemberRole } from '@/spaces/types'
 import { cn } from '@/utilities/cn'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import qs from 'query-string'
+import axios from 'axios'
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 import { UserAvatar } from '@/spaces/components/user-avatar'
 import { ActionTooltip } from '@/spaces/components/action-tooltip'
@@ -28,7 +36,14 @@ interface ChatItemProps {
   currentMember: ExtendedMember
   isUpdated: boolean
   isLast?: boolean
+  socketUrl?: string
+  socketQuery?: Record<string, string>
 }
+
+// Define a simple Zod schema for editing message content
+const formSchema = z.object({
+  content: z.string().min(1, 'Message cannot be empty'),
+})
 
 export const ChatItem = ({
   id,
@@ -40,11 +55,80 @@ export const ChatItem = ({
   currentMember,
   isUpdated,
   isLast,
+  socketUrl,
+  socketQuery,
 }: ChatItemProps) => {
   const [isEditing, setIsEditing] = useState(false)
+  // Convert content prop to a string for use in edit forms.
+  const initialContentString =
+    typeof content === 'string'
+      ? content
+      : content.root.children.map((child) => child.text || '').join('')
+  const [localContent, setLocalContent] = useState(initialContentString)
   const { onOpen } = useModal()
   const router = useRouter()
   const params = useParams()
+
+  // Initialize react-hook-form with our schema and default value.
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { content: localContent },
+  })
+
+  // When not editing, update localContent if prop `content` changes.
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalContent(
+        typeof content === 'string'
+          ? content
+          : content.root.children.map((child) => child.text || '').join(''),
+      )
+    }
+  }, [content, isEditing])
+
+  // Update form values when localContent changes.
+  useEffect(() => {
+    form.reset({ content: localContent })
+  }, [localContent, form])
+
+  // Listen for the Escape key to cancel edit mode.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsEditing(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Handler for editing submission.
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Call the NextJS server action via our API route for updating messages.
+    const response = await fetch('/api/messages/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messageId: id,
+        content: values.content,
+        spaceId: socketQuery?.spaceId,
+        channelId: socketQuery?.channelId,
+      }),
+    })
+
+    const result = await response.json()
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update message')
+    }
+
+    // Update local content on success.
+    setLocalContent(values.content)
+    form.reset({ content: values.content })
+    setIsEditing(false)
+  }
 
   const onMemberClick = () => {
     if (member.id === currentMember.id) {
@@ -100,6 +184,16 @@ export const ChatItem = ({
     return formattedParts
   }
 
+  // Permissions Checks
+  const fileType = fileUrl?.split('.').pop() || undefined
+  const isAdmin = currentMember.role === MemberRole.ADMIN
+  const isModerator = currentMember.role === MemberRole.MODERATOR
+  const isOwner = currentMember.id === member.id
+  const canDeleteMessage = !deleted && (isAdmin || isModerator || isOwner)
+  const canEditMessage = !deleted && isOwner && !fileUrl
+  const isPDF = fileType === 'pdf' && fileUrl
+  const isImage = !isPDF && fileUrl
+
   return (
     <div className="relative group flex items-center hover:bg-black/5 p-4 transition w-full">
       <div className="group flex gap-x-2 items-start w-full">
@@ -131,19 +225,54 @@ export const ChatItem = ({
             </div>
           ) : (
             <div className="mt-2">
-              <p
-                className={cn(
-                  'text-sm text-zinc-600 dark:text-zinc-300',
-                  'break-words whitespace-pre-wrap',
-                )}
-              >
-                {messageContent ? renderContent(messageContent) : 'No content available'}
-                {isUpdated && !isEditing && (
-                  <span className="text-[10px] mx-2 text-zinc-500 dark:text-zinc-400">
-                    (edited)
+              {!fileUrl && !isEditing && (
+                <p
+                  className={cn(
+                    'text-sm text-zinc-600 dark:text-zinc-300',
+                    deleted && 'italic text-zinc-500 dark:text-zinc-400 text-xs mt-1',
+                  )}
+                >
+                  {renderContent(localContent)}
+                  {isUpdated && !deleted && (
+                    <span className="text-[10px] mx-2 text-zinc-500 dark:text-zinc-400">
+                      (edited)
+                    </span>
+                  )}
+                </p>
+              )}
+              {!fileUrl && isEditing && (
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="flex items-center gap-x-2 w-full pt-2"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="content"
+                      render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <div className="relative w-full">
+                              <Input
+                                disabled={form.formState.isSubmitting}
+                                className="p-2 bg-zinc-200/90 dark:bg-zinc-700/75 border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-600 dark:text-zinc-200"
+                                placeholder="Edited message"
+                                {...field}
+                              />
+                            </div>
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <Button disabled={form.formState.isSubmitting} size="sm" variant="default">
+                      Save
+                    </Button>
+                  </form>
+                  <span className="text-[10px] mt-1 text-zinc-400">
+                    Press escape to cancel, enter to save
                   </span>
-                )}
-              </p>
+                </Form>
+              )}
               {fileUrl && (
                 <a
                   href={fileUrl}
@@ -158,6 +287,29 @@ export const ChatItem = ({
             </div>
           )}
         </div>
+        {canDeleteMessage && (
+          <div className="hidden group-hover:flex items-center gap-x-2 absolute p-1 -top-2 right-5 bg-white dark:bg-zinc-800 border rounded-sm">
+            {canEditMessage && (
+              <ActionTooltip label="Edit">
+                <Edit
+                  onClick={() => setIsEditing(true)}
+                  className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+                />
+              </ActionTooltip>
+            )}
+            <ActionTooltip label="Delete">
+              <Trash
+                onClick={() =>
+                  onOpen('deleteMessage', {
+                    apiUrl: `${socketUrl}/${id}`,
+                    query: { messageId: id, ...socketQuery },
+                  })
+                }
+                className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+              />
+            </ActionTooltip>
+          </div>
+        )}
       </div>
     </div>
   )
