@@ -35,7 +35,7 @@ export const syncProfile: CollectionAfterChangeHook = async ({
       const existingProfile = await payload.find({
         collection: 'profiles',
         where: {
-          'user.id': {
+          user: {
             equals: user.id,
           },
         },
