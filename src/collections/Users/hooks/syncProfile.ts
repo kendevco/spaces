@@ -1,9 +1,5 @@
 import type { CollectionAfterChangeHook, CollectionAfterLoginHook } from 'payload'
-<<<<<<< HEAD
-import type { User } from '@/payload-types'
-=======
 import type { User, Profile, Media } from '@/payload-types'
->>>>>>> b72e327 (Stabilizing and bug killing .10)
 
 // For afterChange hook
 export const syncProfile: CollectionAfterChangeHook = async ({
@@ -64,8 +60,8 @@ export const syncProfile: CollectionAfterChangeHook = async ({
 
       const createData = {
         ...baseProfileData,
-        // For create, we must provide a valid image value
-        image: user.image?.id || '', // Empty string for required field when no image
+        // For create, we must provide a valid image value (empty string if no image)
+        image: user.image?.id || '',
       }
 
       if (existingProfile.docs.length > 0 && existingProfile.docs[0]?.id) {
@@ -90,24 +86,8 @@ export const syncProfile: CollectionAfterChangeHook = async ({
 }
 
 // For afterLogin hook
-<<<<<<< HEAD
-export const syncProfileOnLogin: CollectionAfterLoginHook = async ({
-  collection, // Get collection from hook args
-  req,
-  user,
-}) => {
-  return syncProfile({
-    doc: user,
-    operation: 'update',
-    req,
-    previousDoc: user,
-    collection,
-    context: {},
-  })
-=======
 export const syncProfileOnLogin: CollectionAfterLoginHook = async ({ req: { payload }, user }) => {
   // Since the afterChange hook already handles syncing,
   // simply return the user to avoid triggering duplicate updates.
   return user
->>>>>>> b72e327 (Stabilizing and bug killing .10)
 }
