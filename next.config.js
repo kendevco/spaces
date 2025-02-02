@@ -11,6 +11,7 @@ const nextConfig = {
   redirects,
   images: {
     domains: ['spaces.kendev.co', 'localhost'],
+    loader: 'default',
     remotePatterns: [
       {
         protocol: 'https',
@@ -25,7 +26,7 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'spaces.kendev.co',
-        pathname: '/api/spaces-media/file/**',
+        pathname: '/api/spaces-media/**',
       },
       {
         protocol: 'http',
@@ -43,7 +44,7 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '3000',
-        pathname: '/api/spaces-media/file/**',
+        pathname: '/api/spaces-media/**',
       },
     ],
   },

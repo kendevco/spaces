@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/spaces/components/user-avatar'
 import { ActionTooltip } from '@/spaces/components/action-tooltip'
 import { useModal } from '@/spaces/hooks/use-modal-store'
+import Image from 'next/image'
 
 const roleIconMap: Record<MemberRole, React.ReactNode> = {
   [MemberRole.GUEST]: null,
