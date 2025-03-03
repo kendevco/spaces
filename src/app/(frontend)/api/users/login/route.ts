@@ -3,8 +3,29 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
+    // Read the body content ONCE and store it
+    const bodyText = await req.text()
+    let data
+
+    try {
+      // Parse the stored text
+      data = JSON.parse(bodyText)
+    } catch (parseError) {
+      console.error('[USERS_LOGIN] JSON parse error:', {
+        error: parseError,
+        body: bodyText, // Use the already read body text
+      })
+      return NextResponse.json(
+        {
+          errors: [{ message: 'Invalid JSON in request body' }],
+        },
+        { status: 400 }
+      )
+    }
+
     const payload = await getPayloadClient()
-    const { email, password } = await req.json()
+
+    const { email, password } = data
 
     if (!email || !password) {
       return NextResponse.json(
@@ -87,8 +108,10 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('[USERS_LOGIN] Unexpected error:', error)
     return NextResponse.json(
-      { errors: [{ message: 'An unexpected error occurred' }] },
-      { status: 500 },
+      {
+        errors: [{ message: 'Internal server error' }],
+      },
+      { status: 500 }
     )
   }
 }

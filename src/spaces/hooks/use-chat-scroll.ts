@@ -1,108 +1,49 @@
-import { useEffect, RefObject, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
-interface ChatScrollProps {
-  chatRef: RefObject<HTMLDivElement | null>
-  bottomRef: RefObject<HTMLDivElement | null>
-  shouldLoadMore: boolean
-  loadMore: () => void
-  count: number
-  initialLoad?: boolean
+interface UseChatScrollProps {
+  messages: any[]
+  bottomRef: React.RefObject<HTMLDivElement>
+  loadCount: number
+  userId?: string
+  initialLoad: boolean
 }
 
+/**
+ * Hook to manage chat scrolling behavior
+ * - Scrolls to bottom only on initial load
+ * - Optionally scrolls to bottom when the current user sends a message
+ */
 export const useChatScroll = ({
-  chatRef,
+  messages,
   bottomRef,
-  shouldLoadMore,
-  loadMore,
-  count,
+  loadCount,
+  userId,
   initialLoad,
-}: ChatScrollProps) => {
-  const userScrolledRef = useRef(false)
-  const isLoadingMoreRef = useRef(false)
-  const loadMoreClickedRef = useRef(false)
+}: UseChatScrollProps) => {
+  const initialLoadRef = useRef(true)
+  const prevMessagesLengthRef = useRef(messages.length)
 
-  // Handle infinite scroll up and button click
   useEffect(() => {
-    const topDiv = chatRef?.current
-    if (!topDiv) return
+    const shouldScrollToBottom =
+      // Scroll only on initial load of the component
+      (initialLoadRef.current && initialLoad) ||
+      // Or if the last message is from the current user (they sent a new message)
+      (messages.length > 0 && messages[messages.length - 1]?.sender?.id === userId)
 
-    const handleScroll = () => {
-      const scrollTop = topDiv.scrollTop
-      const distanceFromBottom = topDiv.scrollHeight - topDiv.scrollTop - topDiv.clientHeight
-
-      // Set userScrolled to true when user scrolls up
-      if (!userScrolledRef.current && distanceFromBottom > 100) {
-        userScrolledRef.current = true
-      }
-
-      // Reset userScrolled when user scrolls back to bottom
-      if (userScrolledRef.current && distanceFromBottom <= 100) {
-        userScrolledRef.current = false
-      }
-
-      if (scrollTop === 0 && shouldLoadMore && !isLoadingMoreRef.current) {
-        isLoadingMoreRef.current = true
-        loadMoreClickedRef.current = false
-        const currentHeight = topDiv.scrollHeight
-        const currentScrollTop = topDiv.scrollTop
-
-        loadMore()
-
-        // After loading, maintain scroll position
-        setTimeout(() => {
-          const newHeight = topDiv.scrollHeight
-          const heightDifference = newHeight - currentHeight
-          topDiv.scrollTop = heightDifference + currentScrollTop
-          isLoadingMoreRef.current = false
-        }, 100)
-      }
+    if (shouldScrollToBottom && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' })
     }
 
-    topDiv.addEventListener('scroll', handleScroll)
-    return () => topDiv.removeEventListener('scroll', handleScroll)
-  }, [shouldLoadMore, loadMore, chatRef])
-
-  // Handle auto-scroll for new messages
-  useEffect(() => {
-    const bottomDiv = bottomRef?.current
-    const topDiv = chatRef?.current
-    if (!topDiv || !bottomDiv || isLoadingMoreRef.current || loadMoreClickedRef.current) return
-
-    const shouldAutoScroll = () => {
-      // Always scroll on initial load
-      if (initialLoad) return true
-
-      // Don't auto-scroll if user has scrolled up and is reading history
-      if (userScrolledRef.current) return false
-
-      // Auto-scroll if user is near bottom
-      const distanceFromBottom = topDiv.scrollHeight - topDiv.scrollTop - topDiv.clientHeight
-      return distanceFromBottom <= 100
+    // Mark initial load as complete
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false
     }
 
-    if (shouldAutoScroll()) {
-      setTimeout(
-        () => {
-          bottomDiv.scrollIntoView({
-            behavior: initialLoad ? 'auto' : 'smooth',
-          })
-        },
-        initialLoad ? 0 : 100,
-      )
-    }
-  }, [bottomRef, chatRef, count, initialLoad])
+    // Update previous messages length
+    prevMessagesLengthRef.current = messages.length
+  }, [messages, loadCount, bottomRef, userId, initialLoad])
 
-  // Expose a function to handle load more button clicks
-  const handleLoadMoreClick = () => {
-    if (!isLoadingMoreRef.current && shouldLoadMore) {
-      isLoadingMoreRef.current = true
-      loadMoreClickedRef.current = true
-      loadMore()
-      setTimeout(() => {
-        isLoadingMoreRef.current = false
-      }, 100)
-    }
+  return {
+    hasScrolled: !initialLoadRef.current,
   }
-
-  return { handleLoadMoreClick }
 }

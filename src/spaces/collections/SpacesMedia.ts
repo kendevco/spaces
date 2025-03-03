@@ -77,33 +77,6 @@ const SpacesMedia: CollectionConfig = {
       name: 'caption',
       type: 'richText',
     },
-    {
-      name: 'message',
-      type: 'relationship',
-      relationTo: [CollectionSlugs.MESSAGES, CollectionSlugs.DIRECT_MESSAGES],
-      hasMany: false,
-      admin: {
-        position: 'sidebar',
-      },
-    },
-    {
-      name: 'space',
-      type: 'relationship',
-      relationTo: CollectionSlugs.SPACES,
-      hasMany: false,
-      admin: {
-        position: 'sidebar',
-      },
-    },
-    {
-      name: 'profile',
-      type: 'relationship',
-      relationTo: CollectionSlugs.PROFILES,
-      hasMany: false,
-      admin: {
-        position: 'sidebar',
-      },
-    },
   ],
 }
 

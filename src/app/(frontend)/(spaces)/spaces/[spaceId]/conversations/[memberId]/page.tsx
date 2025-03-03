@@ -138,7 +138,7 @@ const MemberIdPage = async ({ params, searchParams }: MemberIdPageProps) => {
           type="conversation"
         />
         {video ? (
-          <div className="flex-1 overflow-y-auto flex-grow h-0">
+          <div className="flex-1 relative" style={{ height: 'calc(100vh - 56px)' }}>
             <MediaRoom chatId={conversationDoc.id} video={true} audio={true} />
           </div>
         ) : (

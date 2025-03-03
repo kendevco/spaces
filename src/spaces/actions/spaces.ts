@@ -147,6 +147,7 @@ export async function getSpaceData(spaceId: string) {
       return { success: false, error: 'Not authenticated' }
     }
 
+    // Get space data
     const space = await payload.findByID({
       collection: CollectionSlugs.SPACES,
       id: spaceId,
@@ -157,25 +158,61 @@ export async function getSpaceData(spaceId: string) {
       return { success: false, error: 'Space not found' }
     }
 
-    const members = await payload.find({
-      collection: CollectionSlugs.MEMBERS,
-      where: {
-        space: {
-          equals: spaceId,
+    // Get members and channels data
+    const [members, channels, directMemberCheck] = await Promise.all([
+      payload.find({
+        collection: CollectionSlugs.MEMBERS,
+        where: {
+          space: {
+            equals: spaceId,
+          },
         },
-      },
-      depth: 2,
-    })
+        depth: 2,
+      }),
 
-    const channels = await payload.find({
-      collection: CollectionSlugs.CHANNELS,
-      where: {
-        space: {
-          equals: spaceId,
+      payload.find({
+        collection: CollectionSlugs.CHANNELS,
+        where: {
+          space: {
+            equals: spaceId,
+          },
         },
-      },
-      depth: 1,
-    })
+        depth: 1,
+      }),
+
+      // Direct member check (more reliable)
+      payload.find({
+        collection: CollectionSlugs.MEMBERS,
+        where: {
+          space: { equals: spaceId },
+          user: { equals: user.id },
+        },
+        depth: 1,
+      })
+    ]);
+
+    console.log('[GET_SPACE_DATA] Direct member check result:', {
+      found: directMemberCheck.totalDocs > 0,
+      memberId: directMemberCheck.docs[0]?.id,
+      role: directMemberCheck.docs[0]?.role,
+    });
+
+    // If user is a member but not found in the members list, add them
+    if (directMemberCheck.totalDocs > 0) {
+      const directMember = directMemberCheck.docs[0];
+
+      // Check if the member is already in the list
+      const memberExists = members.docs.some(member =>
+        (typeof member.user === 'string' && member.user === user.id) ||
+        (typeof member.user !== 'string' && member.user?.id === user.id)
+      );
+
+      // If not in the list, add them
+      if (!memberExists && directMember) {
+        console.log('[GET_SPACE_DATA] Adding current user to members list');
+        members.docs.push(directMember);
+      }
+    }
 
     return {
       success: true,

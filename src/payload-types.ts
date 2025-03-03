@@ -417,17 +417,6 @@ export interface SpacesMedia {
     };
     [k: string]: unknown;
   } | null;
-  message?:
-    | ({
-        relationTo: 'messages';
-        value: string | Message;
-      } | null)
-    | ({
-        relationTo: 'direct-messages';
-        value: string | DirectMessage;
-      } | null);
-  space?: (string | null) | Space;
-  profile?: (string | null) | Profile;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -500,25 +489,6 @@ export interface SpacesMedia {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "messages".
- */
-export interface Message {
-  id: string;
-  content: string;
-  attachments?: (string | SpacesMedia)[] | null;
-  channel: string | Channel;
-  /**
-   * Select a member
-   */
-  member: string | Member;
-  sender: string | User;
-  role: 'user' | 'system';
-  deleted?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "channels".
  */
 export interface Channel {
@@ -549,43 +519,6 @@ export interface Member {
    * The space this member belongs to
    */
   space: string | Space;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "direct-messages".
- */
-export interface DirectMessage {
-  id: string;
-  content: string;
-  attachments?: (string | Media)[] | null;
-  conversation: string | Conversation;
-  sender: string | User;
-  role: 'user' | 'system';
-  deleted?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "conversations".
- */
-export interface Conversation {
-  id: string;
-  memberOne: string | Member;
-  memberTwo: string | Member;
-  directMessages?: (string | DirectMessage)[] | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "profiles".
- */
-export interface Profile {
-  id: string;
-  name: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -927,6 +860,62 @@ export interface Form {
         id?: string | null;
       }[]
     | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "profiles".
+ */
+export interface Profile {
+  id: string;
+  name: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "messages".
+ */
+export interface Message {
+  id: string;
+  content: string;
+  attachments?: (string | SpacesMedia)[] | null;
+  channel: string | Channel;
+  /**
+   * Select a member
+   */
+  member: string | Member;
+  sender: string | User;
+  role: 'user' | 'system';
+  deleted?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "conversations".
+ */
+export interface Conversation {
+  id: string;
+  memberOne: string | Member;
+  memberTwo: string | Member;
+  directMessages?: (string | DirectMessage)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "direct-messages".
+ */
+export interface DirectMessage {
+  id: string;
+  content: string;
+  attachments?: (string | Media)[] | null;
+  conversation: string | Conversation;
+  sender: string | User;
+  role: 'user' | 'system';
+  deleted?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1611,9 +1600,6 @@ export interface SpacesMediaSelect<T extends boolean = true> {
   alt?: T;
   category?: T;
   caption?: T;
-  message?: T;
-  space?: T;
-  profile?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

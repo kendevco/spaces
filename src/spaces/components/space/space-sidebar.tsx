@@ -92,6 +92,24 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
         }) as ExtendedMember[]
         setMembers(extendedMembers)
 
+        // Later, replace the current member check with this:
+        // First check if the current user is in the returned members directly
+        const directMember = members.find((member) => {
+          if (typeof member.user === 'string') {
+            return member.user === user.id
+          }
+          return member.user?.id === user.id
+        })
+
+        if (directMember) {
+          console.log('[SPACE_SIDEBAR] User is a member of this space', {
+            memberId: directMember.id,
+            role: directMember.role,
+          })
+        } else {
+          console.log('[SPACE_SIDEBAR] Warning: User not found in members list')
+        }
+
         const channelsData = {
           text: channels.filter((channel) => channel.type === ChannelType.TEXT),
           audio: channels.filter((channel) => channel.type === ChannelType.AUDIO),
@@ -108,7 +126,13 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
             type: c.type,
           })),
         })
-        setChannels(channelsData as { text: ExtendedChannel[]; audio: ExtendedChannel[]; video: ExtendedChannel[] })
+        setChannels(
+          channelsData as {
+            text: ExtendedChannel[]
+            audio: ExtendedChannel[]
+            video: ExtendedChannel[]
+          },
+        )
         setLoading(false)
       } catch (error) {
         console.error('[SPACE_SIDEBAR] Error:', error)
@@ -131,9 +155,13 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
     return <div>Loading...</div>
   }
 
-  const currentMember = members.find(
-    (member) => typeof member.user !== 'string' && member.user.id === user.id,
-  )
+  const currentMember = members.find((member) => {
+    // Handle both string IDs and populated user objects
+    if (typeof member.user === 'string') {
+      return member.user === user.id
+    }
+    return member.user?.id === user.id
+  })
 
   if (!currentMember) {
     return <div>Loading...</div>
