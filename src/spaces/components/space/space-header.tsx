@@ -19,8 +19,9 @@ import {
   Edit,
 } from 'lucide-react'
 import { useModal } from '@/spaces/hooks/use-modal-store'
-import { MemberRole } from '@/spaces/types'
+import { MemberRole, ModalType } from '@/spaces/types'
 import { Space as PayloadSpace } from '@/payload-types'
+import { SpacesMedia } from '@/spaces/components/ui/spaces-media'
 
 interface SpaceHeaderProps {
   space: PayloadSpace
@@ -47,78 +48,101 @@ export const SpaceHeader = ({ space, role }: SpaceHeaderProps) => {
           dark:from-[#000C2F] dark:to-[#003666]
           hover:from-[#7364c0]/90 hover:to-[#02264a]/90
           dark:hover:from-[#000C2F]/90 dark:hover:to-[#003666]/90
-          transition"
+          transition group"
         >
-          {space.name}
-          <ChevronDown className="h-5 w-5 ml-auto" />
+          <div className="flex items-center gap-x-2 flex-1 min-w-0">
+            {/* Space Image */}
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-700 relative">
+                <SpacesMedia
+                  resource={space.image}
+                  alt={space.name}
+                  width={32}
+                  height={32}
+                  imgClassName="object-cover w-full h-full"
+                  loading="eager"
+                  fallback={
+                    <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 font-semibold text-sm">
+                      {space.name.charAt(0).toUpperCase()}
+                    </div>
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Space Name */}
+            <h1 className="font-semibold text-md text-zinc-200 truncate">{space.name}</h1>
+          </div>
+
+          {/* Dropdown Arrow */}
+          <ChevronDown className="w-5 h-5 text-zinc-400 group-hover:text-zinc-300 transition-colors" />
         </button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent
-        className="w-56 text-xs font-medium
-          bg-gradient-to-br from-[#7364c0] to-[#02264a]
-          dark:from-[#000C2F] dark:to-[#003666]
-          border border-zinc-700/50
-          shadow-lg shadow-black/40"
+        className="w-56 text-xs font-medium text-black dark:text-neutral-400 space-y-[2px]"
+        side="bottom"
+        align="start"
       >
         {isModerator && (
           <DropdownMenuItem
-            onClick={() => onOpen('invite', { space })}
-            className="text-indigo-300 hover:text-indigo-200 hover:bg-zinc-700/50 text-sm cursor-pointer px-3 py-2 transition"
+            onClick={() => onOpen(ModalType.INVITE, { space })}
+            className="text-indigo-600 dark:text-indigo-400 px-3 py-2 text-sm cursor-pointer"
           >
             Invite People
-            <UserPlus className="h-4 w-4 ml-auto" />
+            <UserPlus className="w-4 h-4 ml-auto" />
           </DropdownMenuItem>
         )}
 
         {isAdmin && (
           <DropdownMenuItem
-            onClick={() => onOpen('editSpace', { space })}
-            className="text-zinc-200 hover:bg-zinc-700/50 text-sm cursor-pointer px-3 py-2 transition"
+            onClick={() => onOpen(ModalType.EDIT_SPACE, { space })}
+            className="px-3 py-2 text-sm cursor-pointer"
           >
-            Edit Space
-            <Edit className="h-4 w-4 ml-auto" />
+            Space Settings
+            <Settings className="w-4 h-4 ml-auto" />
           </DropdownMenuItem>
         )}
 
-        {isModerator && (
+        {isAdmin && (
           <DropdownMenuItem
-            onClick={() => onOpen('members', { space })}
-            className="text-zinc-200 hover:bg-zinc-700/50 text-sm cursor-pointer px-3 py-2 transition"
+            onClick={() => onOpen(ModalType.MEMBERS, { space })}
+            className="px-3 py-2 text-sm cursor-pointer"
           >
             Manage Members
-            <Users className="h-4 w-4 ml-auto" />
+            <Users className="w-4 h-4 ml-auto" />
           </DropdownMenuItem>
         )}
 
         {isModerator && (
           <DropdownMenuItem
-            onClick={() => onOpen('createChannel', { space })}
-            className="text-zinc-200 hover:bg-zinc-700/50 text-sm cursor-pointer px-3 py-2 transition"
+            onClick={() => onOpen(ModalType.CREATE_CHANNEL, { space })}
+            className="px-3 py-2 text-sm cursor-pointer"
           >
             Create Channel
-            <PlusCircle className="h-4 w-4 ml-auto" />
+            <PlusCircle className="w-4 h-4 ml-auto" />
           </DropdownMenuItem>
         )}
 
-        {isModerator && <DropdownMenuSeparator className="bg-zinc-700/50" />}
+        {isModerator && <DropdownMenuSeparator />}
 
         {isAdmin && (
           <DropdownMenuItem
-            onClick={() => onOpen('deleteSpace', { space })}
-            className="text-rose-500 hover:bg-rose-500/10 text-sm cursor-pointer px-3 py-2 transition"
+            onClick={() => onOpen(ModalType.DELETE_SPACE, { space })}
+            className="text-rose-500 px-3 py-2 text-sm cursor-pointer"
           >
             Delete Space
-            <Trash className="h-4 w-4 ml-auto" />
+            <Trash className="w-4 h-4 ml-auto" />
           </DropdownMenuItem>
         )}
 
         {!isAdmin && (
           <DropdownMenuItem
-            onClick={() => onOpen('leaveSpace', { space })}
-            className="text-rose-500 hover:bg-rose-500/10 text-sm cursor-pointer px-3 py-2 transition"
+            onClick={() => onOpen(ModalType.LEAVE_SPACE, { space })}
+            className="text-rose-500 px-3 py-2 text-sm cursor-pointer"
           >
             Leave Space
-            <LogOut className="h-4 w-4 ml-auto" />
+            <LogOut className="w-4 h-4 ml-auto" />
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

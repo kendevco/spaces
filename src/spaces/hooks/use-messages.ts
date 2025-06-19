@@ -28,7 +28,7 @@ export const useMessages = ({ chatId, type, spaceId }: UseMessagesProps) => {
   const connectionId = useRef(Math.random().toString(36).substring(7))
   const messageSet = useRef(new Set<string>())
   const lastCursor = useRef<string | null>(null)
-  const pageSize = 25
+  const pageSize = 50
   const latestMessageTime = useRef<number>(Date.now())
 
   const loadMoreMessages = useCallback(async () => {
@@ -271,12 +271,37 @@ export const useMessages = ({ chatId, type, spaceId }: UseMessagesProps) => {
                   currentSize: messageSet.current.size,
                 })
 
+                // Update latest message time for better ordering
+                const messageTime = new Date(data.message.createdAt).getTime()
+                if (messageTime > latestMessageTime.current) {
+                  latestMessageTime.current = messageTime
+                }
+
                 setMessages((prev) => {
-                  const newMessages = [data.message, ...prev]
+                  // Insert message in correct chronological order
+                  const newMessage = data.message
+                  const insertIndex = prev.findIndex(
+                    (msg) => new Date(msg.createdAt).getTime() < messageTime,
+                  )
+
+                  let newMessages
+                  if (insertIndex === -1) {
+                    // Message is oldest, add to end
+                    newMessages = [...prev, newMessage]
+                  } else {
+                    // Insert at correct position
+                    newMessages = [
+                      ...prev.slice(0, insertIndex),
+                      newMessage,
+                      ...prev.slice(insertIndex),
+                    ]
+                  }
+
                   console.log(`[useMessages][${connectionId.current}] State updated:`, {
                     newCount: newMessages.length,
                     previousCount: prev.length,
-                    latestMessageId: newMessages[0].id,
+                    insertIndex,
+                    latestMessageId: newMessage.id,
                     timestamp: new Date().toISOString(),
                   })
                   return newMessages

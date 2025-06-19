@@ -195,7 +195,7 @@ const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
     console.log(`[CHANNEL_PAGE] All checks passed, rendering channel page`)
 
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col h-screen overflow-hidden">
         <ChatHeader
           spaceId={spaceId}
           name={channel.name}
@@ -206,7 +206,7 @@ const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
           role={currentMember.role}
         />
         {channel.type === ChannelType.TEXT && (
-          <>
+          <div className="flex flex-col flex-1 min-h-0">
             <ChatMessages
               name={channel.name}
               member={currentMember}
@@ -224,7 +224,7 @@ const ChannelIdPage = async ({ params }: ChannelIdPageProps) => {
               currentChannel={channel}
             />
             <ChatInput name={channel.name} type="channel" spaceId={spaceId} chatId={channelId} />
-          </>
+          </div>
         )}
         {channel.type === ChannelType.AUDIO && (
           <div className="flex-1 relative" style={{ height: 'calc(100vh - 56px)' }}>

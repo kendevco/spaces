@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { track } from '@vercel/analytics'
 import { MemberRole } from '@/spaces/types'
 import { toast } from '@/spaces/utilities/toast'
+import { getGravatarUrlOrNull } from '@/spaces/utilities/gravatar'
 
 interface SpaceMemberProps {
   member: Member & {
@@ -32,10 +33,10 @@ export const SpaceMember = ({ member, spaceId }: SpaceMemberProps) => {
   const router = useRouter()
 
   const profile = member?.profile
-  const imageUrl = profile?.imageUrl || profile?.image?.url || null
+  const user = member?.user
 
   // Get user info from the member
-  const user = member?.user
+  const userEmail = user && typeof user !== 'string' ? user.email : null
   const name =
     user && typeof user !== 'string'
       ? user.name || // Try name first
@@ -43,6 +44,10 @@ export const SpaceMember = ({ member, spaceId }: SpaceMemberProps) => {
         user.email?.split('@')[0] || // Then email username
         'Unnamed User'
       : 'Unnamed User'
+
+  // Get image URL with Gravatar fallback
+  const imageUrl =
+    profile?.imageUrl || profile?.image?.url || getGravatarUrlOrNull(userEmail, 80) || null
 
   const nameInitial = name?.[0] || '?'
 

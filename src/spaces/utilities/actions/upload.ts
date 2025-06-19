@@ -97,7 +97,7 @@ export async function uploadFile({
       mimeType: media.mimeType || file.type,
       filesize: media.filesize || buffer.byteLength,
       alt: media.alt || file.name,
-      category: media.category,
+      category: media.category || category,
     }
   } catch (error) {
     console.error('Upload error:', error)

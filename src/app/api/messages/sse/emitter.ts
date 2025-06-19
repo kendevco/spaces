@@ -272,6 +272,15 @@ class MessageEmitterService {
   }
 }
 
-// Export singleton instance
+// Create and export singleton instance
 const messageEmitterService = new MessageEmitterService()
-export default messageEmitterService
+
+// Export bound methods using arrow functions to preserve this context
+export const emitMessage = (message: any) => messageEmitterService.emitMessage(message)
+export const emitDirectMessage = (message: any) => messageEmitterService.emitDirectMessage(message)
+export const subscribeToMessages = (callback: (message: any) => void) =>
+  messageEmitterService.subscribeToMessages(callback)
+export const subscribeToDirectMessages = (callback: (message: any) => void) =>
+  messageEmitterService.subscribeToDirectMessages(callback)
+
+export default messageEmitterService.getEmitter()

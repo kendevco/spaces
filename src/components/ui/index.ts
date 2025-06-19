@@ -1,6 +1,9 @@
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './accordion'
 export { Checkbox } from './checkbox'
 export { Button } from './button'
+export { ChatBubble, ChatBubbleMessage, ChatBubbleAvatar, ChatBubbleAction } from './chat-bubble'
+export { ChatInput } from './chat-input'
+export { ChatMessageList } from './chat-message-list'
 export {
   Form,
   FormField,

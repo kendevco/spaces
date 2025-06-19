@@ -17,14 +17,78 @@ const Messages: CollectionConfig = {
   fields: [
     {
       name: 'content',
-      type: 'text',
-      required: true,
+      type: 'textarea',
+      required: false, // Allow messages with only attachments
+      admin: {
+        description: 'Message text content (optional if attachments are provided)',
+      },
+    },
+    {
+      name: 'contentJson',
+      type: 'json',
+      required: false,
+      admin: {
+        description: 'Rich content in JSON format (for complex formatting)',
+        condition: (data) => !data?.content, // Show when no text content
+      },
     },
     {
       name: 'attachments',
       type: 'relationship',
       relationTo: 'spaces-media',
       hasMany: true,
+      admin: {
+        description: 'Multiple file attachments (images, documents, etc.)',
+      },
+    },
+    {
+      name: 'messageType',
+      type: 'select',
+      options: [
+        { label: 'Text', value: 'text' },
+        { label: 'Image', value: 'image' },
+        { label: 'File', value: 'file' },
+        { label: 'Rich', value: 'rich' },
+      ],
+      defaultValue: 'text',
+      admin: {
+        position: 'sidebar',
+        description: 'Type of message content',
+      },
+    },
+    {
+      name: 'formatOptions',
+      type: 'group',
+      admin: {
+        position: 'sidebar',
+      },
+      fields: [
+        {
+          name: 'textWrap',
+          type: 'checkbox',
+          defaultValue: true,
+          admin: {
+            description: 'Enable text wrapping for long messages',
+          },
+        },
+        {
+          name: 'maxLines',
+          type: 'number',
+          defaultValue: 20,
+          admin: {
+            description: 'Maximum lines before show more/less toggle',
+            condition: (data) => data?.formatOptions?.textWrap,
+          },
+        },
+        {
+          name: 'allowExpand',
+          type: 'checkbox',
+          defaultValue: true,
+          admin: {
+            description: 'Allow users to expand/collapse long messages',
+          },
+        },
+      ],
     },
     {
       name: 'channel',
@@ -70,6 +134,14 @@ const Messages: CollectionConfig = {
       defaultValue: 'false',
       admin: {
         position: 'sidebar',
+      },
+    },
+    {
+      name: 'editedAt',
+      type: 'date',
+      admin: {
+        position: 'sidebar',
+        description: 'Last edit timestamp',
       },
     },
   ],

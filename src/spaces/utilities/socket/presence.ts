@@ -1,5 +1,4 @@
 import { getPayloadClient } from '../payload/getPayloadClient'
-import type { Member } from '@/spaces/collections/types'
 import { MemberRoles } from '@/spaces/constants'
 
 interface PresenceData {
@@ -8,7 +7,7 @@ interface PresenceData {
   isOnline: boolean
 }
 
-export async function updatePresence({ userId, memberId, isOnline }: PresenceData) {
+export async function updatePresence({ userId, memberId, isOnline: _isOnline }: PresenceData) {
   try {
     const payload = await getPayloadClient()
 
@@ -29,7 +28,7 @@ export async function updatePresence({ userId, memberId, isOnline }: PresenceDat
   }
 }
 
-export async function updateManyPresence(memberIds: string[], isOnline: boolean) {
+export async function updateManyPresence(memberIds: string[], _isOnline: boolean) {
   try {
     const payload = await getPayloadClient()
 

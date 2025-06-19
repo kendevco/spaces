@@ -1,11 +1,5 @@
 import type { Block } from 'payload'
-
-import {
-  FixedToolbarFeature,
-  HeadingFeature,
-  InlineToolbarFeature,
-  lexicalEditor,
-} from '@payloadcms/richtext-lexical'
+import { defaultLexical } from '@/fields/defaultLexical'
 
 export const FormBlock: Block = {
   slug: 'formBlock',
@@ -28,16 +22,7 @@ export const FormBlock: Block = {
       admin: {
         condition: (_, { enableIntro }) => Boolean(enableIntro),
       },
-      editor: lexicalEditor({
-        features: ({ rootFeatures }) => {
-          return [
-            ...rootFeatures,
-            HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
-            FixedToolbarFeature(),
-            InlineToolbarFeature(),
-          ]
-        },
-      }),
+      editor: defaultLexical,
       label: 'Intro Content',
     },
   ],

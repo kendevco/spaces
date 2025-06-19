@@ -167,7 +167,8 @@ export async function getSpaceData(spaceId: string) {
             equals: spaceId,
           },
         },
-        depth: 2,
+        depth: 3, // Increase depth to ensure full user population
+        limit: 1000, // Ensure we get all members
       }),
 
       payload.find({
@@ -188,29 +189,36 @@ export async function getSpaceData(spaceId: string) {
           user: { equals: user.id },
         },
         depth: 1,
-      })
-    ]);
+      }),
+    ])
+
+    console.log('[GET_SPACE_DATA] Members found:', {
+      total: members.totalDocs,
+      populated: members.docs.filter((m) => typeof m.user !== 'string').length,
+      unpopulated: members.docs.filter((m) => typeof m.user === 'string').length,
+    })
 
     console.log('[GET_SPACE_DATA] Direct member check result:', {
       found: directMemberCheck.totalDocs > 0,
       memberId: directMemberCheck.docs[0]?.id,
       role: directMemberCheck.docs[0]?.role,
-    });
+    })
 
     // If user is a member but not found in the members list, add them
     if (directMemberCheck.totalDocs > 0) {
-      const directMember = directMemberCheck.docs[0];
+      const directMember = directMemberCheck.docs[0]
 
       // Check if the member is already in the list
-      const memberExists = members.docs.some(member =>
-        (typeof member.user === 'string' && member.user === user.id) ||
-        (typeof member.user !== 'string' && member.user?.id === user.id)
-      );
+      const memberExists = members.docs.some(
+        (member) =>
+          (typeof member.user === 'string' && member.user === user.id) ||
+          (typeof member.user !== 'string' && member.user?.id === user.id),
+      )
 
       // If not in the list, add them
       if (!memberExists && directMember) {
-        console.log('[GET_SPACE_DATA] Adding current user to members list');
-        members.docs.push(directMember);
+        console.log('[GET_SPACE_DATA] Adding current user to members list')
+        members.docs.push(directMember)
       }
     }
 

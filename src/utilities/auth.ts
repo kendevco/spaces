@@ -1,6 +1,3 @@
-import { cookies } from 'next/headers'
-import { NextRequest } from 'next/server'
-
 export const PAYLOAD_TOKEN_NAME = 'payload-token'
 
 export interface JWT {

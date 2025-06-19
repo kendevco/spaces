@@ -400,8 +400,7 @@ export interface Space {
  */
 export interface SpacesMedia {
   id: string;
-  alt: string;
-  category: 'profile' | 'space' | 'message';
+  alt?: string | null;
   caption?: {
     root: {
       type: string;
@@ -417,6 +416,10 @@ export interface SpacesMedia {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Categorize the media for organization
+   */
+  category?: ('profile' | 'space' | 'message') | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -879,8 +882,44 @@ export interface Profile {
  */
 export interface Message {
   id: string;
-  content: string;
+  /**
+   * Message text content (optional if attachments are provided)
+   */
+  content?: string | null;
+  /**
+   * Rich content in JSON format (for complex formatting)
+   */
+  contentJson?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Multiple file attachments (images, documents, etc.)
+   */
   attachments?: (string | SpacesMedia)[] | null;
+  /**
+   * Type of message content
+   */
+  messageType?: ('text' | 'image' | 'file' | 'rich') | null;
+  formatOptions?: {
+    /**
+     * Enable text wrapping for long messages
+     */
+    textWrap?: boolean | null;
+    /**
+     * Maximum lines before show more/less toggle
+     */
+    maxLines?: number | null;
+    /**
+     * Allow users to expand/collapse long messages
+     */
+    allowExpand?: boolean | null;
+  };
   channel: string | Channel;
   /**
    * Select a member
@@ -889,6 +928,10 @@ export interface Message {
   sender: string | User;
   role: 'user' | 'system';
   deleted?: string | null;
+  /**
+   * Last edit timestamp
+   */
+  editedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1558,12 +1601,22 @@ export interface ChannelsSelect<T extends boolean = true> {
  */
 export interface MessagesSelect<T extends boolean = true> {
   content?: T;
+  contentJson?: T;
   attachments?: T;
+  messageType?: T;
+  formatOptions?:
+    | T
+    | {
+        textWrap?: T;
+        maxLines?: T;
+        allowExpand?: T;
+      };
   channel?: T;
   member?: T;
   sender?: T;
   role?: T;
   deleted?: T;
+  editedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1598,8 +1651,8 @@ export interface DirectMessagesSelect<T extends boolean = true> {
  */
 export interface SpacesMediaSelect<T extends boolean = true> {
   alt?: T;
-  category?: T;
   caption?: T;
+  category?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

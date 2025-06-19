@@ -16,27 +16,41 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/spaces/components/user-avatar'
 import { ActionTooltip } from '@/spaces/components/action-tooltip'
 import { useModal } from '@/spaces/hooks/use-modal-store'
-import Image from 'next/image'
+import { RichContentRenderer } from './rich-content-renderer'
+import { ExpandableMessage } from './expandable-message'
+import { MessageAttachments } from './message-attachments'
+import { Media } from '@/components/Media'
 
 const roleIconMap: Record<MemberRole, React.ReactNode> = {
   [MemberRole.GUEST]: null,
   [MemberRole.MEMBER]: null,
-  [MemberRole.MODERATOR]: <ShieldCheck className="w-4 h-4 ml-2 text-indigo-500" />,
-  [MemberRole.ADMIN]: <ShieldAlert className="w-4 h-4 ml-2 text-rose-500" />,
+  [MemberRole.MODERATOR]: <ShieldCheck className="w-4 h-4 ml-1 text-indigo-500" />,
+  [MemberRole.ADMIN]: <ShieldAlert className="w-4 h-4 ml-1 text-rose-500" />,
+}
+
+interface MessageFormatOptions {
+  textWrap?: boolean
+  maxLines?: number
+  allowExpand?: boolean
 }
 
 interface ChatItemProps {
   id: string
-  content: string | { root: { children: Array<{ text?: string }> } }
+  content?: string
+  contentJson?: any
+  messageType?: 'text' | 'image' | 'file' | 'rich'
+  formatOptions?: MessageFormatOptions
+  attachments?: any[]
   member: ExtendedMember
   timestamp: string
-  fileUrl: string | null
+  fileUrl?: string | null // Legacy support
   deleted: boolean
   currentMember: ExtendedMember
   isUpdated: boolean
   isLast?: boolean
   socketUrl?: string
   socketQuery?: Record<string, string>
+  isCompact?: boolean
 }
 
 // Define a simple Zod schema for editing message content
@@ -47,23 +61,36 @@ const formSchema = z.object({
 export const ChatItem = ({
   id,
   content,
+  contentJson,
+  messageType = 'text',
+  formatOptions,
+  attachments = [],
   member,
   timestamp,
-  fileUrl,
+  fileUrl, // Legacy support
   deleted,
   currentMember,
   isUpdated,
   isLast,
   socketUrl,
   socketQuery,
+  isCompact,
 }: ChatItemProps) => {
   const [isEditing, setIsEditing] = useState(false)
-  // Convert content prop to a string for use in edit forms.
-  const initialContentString =
-    typeof content === 'string'
-      ? content
-      : content.root.children.map((child) => child.text || '').join('')
-  const [localContent, setLocalContent] = useState(initialContentString)
+
+  // Handle both new and legacy content structure
+  const getInitialContent = () => {
+    if (typeof content === 'string') {
+      return content
+    }
+    if (content && typeof content === 'object' && 'root' in content) {
+      const contentWithRoot = content as { root: { children: Array<{ text?: string }> } }
+      return contentWithRoot.root.children.map((child: any) => child.text || '').join('')
+    }
+    return ''
+  }
+
+  const [localContent, setLocalContent] = useState(getInitialContent())
   const { onOpen } = useModal()
   const router = useRouter()
   const params = useParams()
@@ -77,11 +104,7 @@ export const ChatItem = ({
   // When not editing, update localContent if prop `content` changes.
   useEffect(() => {
     if (!isEditing) {
-      setLocalContent(
-        typeof content === 'string'
-          ? content
-          : content.root.children.map((child) => child.text || '').join(''),
-      )
+      setLocalContent(getInitialContent())
     }
   }, [content, isEditing])
 
@@ -138,77 +161,46 @@ export const ChatItem = ({
 
   const memberName = member?.profile?.name || 'Unknown User'
   const memberImageUrl = member?.profile?.imageUrl || null
+  const memberEmail = typeof member?.user !== 'string' ? member?.user?.email : null
   const memberInitial = memberName?.[0] || '?'
 
-  const messageContent = (() => {
-    if (typeof content === 'string') {
-      return content
-    }
+  // Check if message has content (text or JSON)
+  const hasTextContent = content && content.toString().trim().length > 0
+  const hasJsonContent = contentJson && Object.keys(contentJson).length > 0
+  const hasContent = hasTextContent || hasJsonContent
 
-    if (content?.root?.children) {
-      return content.root.children.map((child) => child.text || '').join('')
-    }
-
-    return ''
-  })()
-
-  const renderContent = (text: string) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g
-    const parts = text.split(urlRegex)
-
-    // First split by URLs, then handle line breaks
-    const formattedParts = parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white underline break-all hover:text-white/90"
-          >
-            {part}
-          </a>
-        )
-      }
-      // Split by newlines and join with br tags
-      return part.split('\n').map((line, j) => (
-        <Fragment key={`${i}-${j}`}>
-          {line}
-          {j !== part.split('\n').length - 1 && <br />}
-        </Fragment>
-      ))
-    })
-
-    return formattedParts
-  }
+  // Handle legacy fileUrl or new attachments
+  const messageAttachments = fileUrl
+    ? [{ url: fileUrl, filename: 'attachment', mimeType: 'application/octet-stream' }]
+    : attachments || []
 
   // Permissions Checks
-  const fileType = fileUrl?.split('.').pop() || undefined
   const isAdmin = currentMember.role === MemberRole.ADMIN
   const isModerator = currentMember.role === MemberRole.MODERATOR
   const isOwner = currentMember.id === member.id
   const canDeleteMessage = !deleted && (isAdmin || isModerator || isOwner)
-  const canEditMessage = !deleted && isOwner && !fileUrl
-  const isPDF = fileType === 'pdf' && fileUrl
-  const isImage = !isPDF && fileUrl
+  const canEditMessage = !deleted && isOwner && messageAttachments.length === 0
 
   return (
-    <div className="relative group flex items-center hover:bg-black/5 p-4 transition w-full">
-      <div className="group flex gap-x-2 items-start w-full">
-        <div onClick={onMemberClick} className="cursor-pointer hover:drop-shadow-md transition">
+    <div className="relative group flex items-start hover:bg-black/5 px-4 py-1.5 transition w-full">
+      <div className="group flex gap-x-3 items-start w-full">
+        <div
+          onClick={onMemberClick}
+          className="cursor-pointer hover:drop-shadow-md transition flex-shrink-0"
+        >
           <UserAvatar
             src={memberImageUrl}
-            className="h-8 w-8 md:h-8 md:w-8"
+            email={memberEmail}
+            className="h-8 w-8"
             fallback={memberInitial}
           />
         </div>
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col w-full min-w-0">
           <div className="flex items-center gap-x-2">
             <div className="flex items-center">
               <p
                 onClick={onMemberClick}
-                className="font-semibold text-sm hover:underline cursor-pointer"
+                className="font-semibold text-sm hover:underline cursor-pointer text-zinc-200"
               >
                 {memberName}
               </p>
@@ -218,32 +210,36 @@ export const ChatItem = ({
             </div>
             <span className="text-xs text-zinc-500 dark:text-zinc-400">{timestamp}</span>
           </div>
+
           {deleted ? (
-            <div className="mt-2">
+            <div className="mt-1">
               <p className="text-sm italic text-zinc-500">This message has been deleted</p>
             </div>
           ) : (
-            <div className="mt-2">
-              {!fileUrl && !isEditing && (
-                <p
-                  className={cn(
-                    'text-sm text-zinc-600 dark:text-zinc-300',
-                    deleted && 'italic text-zinc-500 dark:text-zinc-400 text-xs mt-1',
-                  )}
-                >
-                  {renderContent(localContent)}
+            <div className="mt-1">
+              {/* Message Content */}
+              {hasContent && !isEditing && (
+                <div className="mb-3">
+                  <ExpandableMessage
+                    content={hasTextContent ? content?.toString() : undefined}
+                    contentJson={hasJsonContent ? contentJson : undefined}
+                    formatOptions={formatOptions}
+                    className="text-zinc-200 dark:text-zinc-300"
+                  />
                   {isUpdated && !deleted && (
-                    <span className="text-[10px] mx-2 text-zinc-500 dark:text-zinc-400">
+                    <span className="text-[10px] ml-2 text-zinc-500 dark:text-zinc-400">
                       (edited)
                     </span>
                   )}
-                </p>
+                </div>
               )}
-              {!fileUrl && isEditing && (
+
+              {/* Editing Form */}
+              {hasContent && isEditing && (
                 <Form {...form}>
                   <form
                     onSubmit={form.handleSubmit(onSubmit)}
-                    className="flex items-center gap-x-2 w-full pt-2"
+                    className="flex items-center gap-x-2 w-full pt-1"
                   >
                     <FormField
                       control={form.control}
@@ -267,32 +263,28 @@ export const ChatItem = ({
                       Save
                     </Button>
                   </form>
-                  <span className="text-[10px] mt-1 text-zinc-400">
+                  <span className="text-[10px] mt-0.5 text-zinc-400">
                     Press escape to cancel, enter to save
                   </span>
                 </Form>
               )}
-              {fileUrl && (
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-x-2 mt-2 text-blue-500 hover:underline"
-                >
-                  <FileIcon className="h-4 w-4" />
-                  Attachment
-                </a>
+
+              {/* Message Attachments */}
+              {messageAttachments.length > 0 && (
+                <MessageAttachments attachments={messageAttachments} messageId={id} />
               )}
             </div>
           )}
         </div>
+
+        {/* Action Buttons */}
         {canDeleteMessage && (
-          <div className="hidden group-hover:flex items-center gap-x-2 absolute p-1 -top-2 right-5 bg-white dark:bg-zinc-800 border rounded-sm">
+          <div className="hidden group-hover:flex items-center gap-x-1 absolute p-1 -top-1 right-2 bg-white dark:bg-zinc-800 border rounded-sm">
             {canEditMessage && (
               <ActionTooltip label="Edit">
                 <Edit
                   onClick={() => setIsEditing(true)}
-                  className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+                  className="cursor-pointer w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
                 />
               </ActionTooltip>
             )}
@@ -304,7 +296,7 @@ export const ChatItem = ({
                     query: { messageId: id, ...socketQuery },
                   })
                 }
-                className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+                className="cursor-pointer w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
               />
             </ActionTooltip>
           </div>

@@ -15,6 +15,7 @@ import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import { Page, Post } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
 import { Media } from '@/collections/Media'
+import { SpacesMedia } from '@/spaces/collections'
 
 const generateTitle: GenerateTitle<Post | Page> = ({ doc }) => {
   return doc?.title ? `${doc.title} | Payload Website Template` : 'Payload Website Template'
@@ -96,6 +97,7 @@ export const plugins: Plugin[] = [
   vercelBlobStorage({
     collections: {
       [Media.slug]: true,
+      [SpacesMedia.slug]: true,
     },
     token: process.env.BLOB_READ_WRITE_TOKEN!,
   }),

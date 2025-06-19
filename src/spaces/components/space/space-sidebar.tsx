@@ -15,6 +15,7 @@ import { Hash, Mic, ShieldCheck, Video, Loader2 } from 'lucide-react'
 import { useAuth } from '@/providers/Auth'
 import { Space } from '@/payload-types'
 import { spaceService } from '@/spaces/services/spaceService.client'
+import { getGravatarUrlOrNull } from '@/spaces/utilities/gravatar'
 
 interface SpaceSidebarProps {
   spaceId: string
@@ -69,45 +70,66 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
           hasSpace: !!space,
           memberCount: members?.length,
           channelCount: channels?.length,
+          members: members?.map((m) => ({
+            id: m.id,
+            role: m.role,
+            userId: typeof m.user === 'string' ? m.user : m.user?.id,
+          })),
         })
 
         if (!mounted) return // Early return if unmounted
 
         setSpace(space)
-        // Transform members to ExtendedMember format
-        const extendedMembers = (members ?? []).map((member) => {
-          const userData = typeof member.user === 'string' ? null : member.user
-          return {
-            ...member,
-            profile: {
-              id: userData?.id ?? '',
-              name:
-                userData?.name ?? `${userData?.firstName ?? ''} ${userData?.lastName ?? ''}`.trim(),
-              email: userData?.email ?? '',
-              imageUrl: null,
-              createdAt: userData?.createdAt ?? '',
-              updatedAt: userData?.updatedAt ?? '',
-            },
-          }
-        }) as ExtendedMember[]
-        setMembers(extendedMembers)
 
-        // Later, replace the current member check with this:
-        // First check if the current user is in the returned members directly
-        const directMember = members.find((member) => {
-          if (typeof member.user === 'string') {
-            return member.user === user.id
-          }
-          return member.user?.id === user.id
+        // Simple member transformation - filter out unpopulated users and log the issue
+        const processedMembers = (members ?? [])
+          .map((member) => {
+            const userData =
+              typeof member.user === 'string' ? null : (member.user as typeof member.user & { image?: { url?: string } })
+
+            if (!userData) {
+              console.warn('[SPACE_SIDEBAR] Member has no user data (unpopulated):', member.id)
+              return null
+            }
+
+            // Create ExtendedMember with proper profile structure
+            return {
+              ...member,
+              profile: {
+                id: userData.id,
+                name:
+                  userData.name ||
+                  `${userData.firstName || ''} ${userData.lastName || ''}`.trim() ||
+                  'Unknown User',
+                email: userData.email || '',
+                imageUrl:
+                  (typeof userData.image === 'object' && userData.image?.url
+                    ? userData.image.url
+                    : null) || getGravatarUrlOrNull(userData.email, 80),
+                userId: userData.id,
+                createdAt: userData.createdAt || new Date().toISOString(),
+                updatedAt: userData.updatedAt || new Date().toISOString(),
+              },
+            }
+          })
+          .filter(Boolean) as ExtendedMember[]
+
+        setMembers(processedMembers)
+
+        // Find current user's membership
+        const currentUserMember = processedMembers.find((member) => {
+          const userData = typeof member.user === 'string' ? null : member.user
+          return userData?.id === user.id
         })
 
-        if (directMember) {
-          console.log('[SPACE_SIDEBAR] User is a member of this space', {
-            memberId: directMember.id,
-            role: directMember.role,
+        if (currentUserMember) {
+          console.log('[SPACE_SIDEBAR] Current user found in space:', {
+            memberId: currentUserMember.id,
+            role: currentUserMember.role,
+            name: currentUserMember.profile.name,
           })
         } else {
-          console.log('[SPACE_SIDEBAR] Warning: User not found in members list')
+          console.warn('[SPACE_SIDEBAR] Current user not found in space members')
         }
 
         const channelsData = {
@@ -120,12 +142,8 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
           text: channelsData.text.length,
           audio: channelsData.audio.length,
           video: channelsData.video.length,
-          rawChannels: channels.map((c) => ({
-            id: c.id,
-            name: c.name,
-            type: c.type,
-          })),
         })
+
         setChannels(
           channelsData as {
             text: ExtendedChannel[]
@@ -213,7 +231,7 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
               {
                 label: 'Members',
                 type: 'member',
-                data: otherMembers.map((member) => ({
+                data: members.map((member) => ({
                   id: member.id,
                   name:
                     typeof member.user !== 'string'
@@ -233,6 +251,7 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
               channelType={ChannelType.TEXT}
               role={currentMember.role}
               label="Text Channels"
+              space={space}
             >
               <div className="space-y-[2px]">
                 {channels.text.map((channel) => (
@@ -254,6 +273,7 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
               channelType={ChannelType.AUDIO}
               role={currentMember.role}
               label="Voice Channels"
+              space={space}
             >
               <div className="space-y-[2px]">
                 {channels.audio.map((channel) => (
@@ -275,6 +295,7 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
               channelType={ChannelType.VIDEO}
               role={currentMember.role}
               label="Video Channels"
+              space={space}
             >
               <div className="space-y-[2px]">
                 {channels.video.map((channel) => (
@@ -289,11 +310,16 @@ export function SpaceSidebar({ spaceId }: SpaceSidebarProps): React.ReactElement
             </SpaceSection>
           </div>
         )}
-        {!!otherMembers.length && (
+        {!!members.length && (
           <div className="mb-2">
-            <SpaceSection sectionType="members" role={currentMember.role} label="Members">
+            <SpaceSection
+              sectionType="members"
+              role={currentMember.role}
+              label="Members"
+              space={space}
+            >
               <div className="space-y-[2px]">
-                {otherMembers.map((member) => {
+                {members.map((member) => {
                   if (typeof member.user === 'string') return null
 
                   // Get the user's display name with proper fallbacks

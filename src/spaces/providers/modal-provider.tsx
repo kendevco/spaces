@@ -13,6 +13,7 @@ import { DeleteChannelModal } from '@/spaces/modals/delete-channel-modal'
 import { EditChannelModal } from '@/spaces/modals/edit-channel-modal'
 import { MessageFileModal } from '@/spaces/modals/message-file-modal'
 import { DeleteMessageModal } from '@/spaces/modals/delete-message-modal'
+import { ImageViewerModal } from '@/spaces/modals/image-viewer-modal'
 
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   const [isMounted, setIsMounted] = useState(false)
@@ -39,6 +40,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
       <EditChannelModal />
       <MessageFileModal />
       <DeleteMessageModal />
+      <ImageViewerModal />
     </>
   )
 }

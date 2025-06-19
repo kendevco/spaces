@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { NavigationMenu } from './navigation-menu'
 import { Space } from '@/payload-types'
 import { spaceService } from '@/spaces/services/spaceService.client'
+import { getSpaceImageUrl } from '@/spaces/utilities/image-debug'
 
 export const NavigationSidebar = () => {
   const [spaces, setSpaces] = useState<Space[]>([])
@@ -54,17 +55,8 @@ export const NavigationSidebar = () => {
           </div>
         ) : (
           spaces.map((space) => {
-            const imageUrl = space.image
-              ? typeof space.image === 'string'
-                ? space.image.startsWith('http')
-                  ? space.image
-                  : `/media/${space.image}`
-                : space.image.url
-                  ? space.image.url.startsWith('http')
-                    ? space.image.url
-                    : `/media/${space.image.url}`
-                  : null
-              : null
+            // Use debugging utility to get image URL
+            const imageUrl = getSpaceImageUrl(space)
 
             return (
               <div key={space.id} className="mb-4">

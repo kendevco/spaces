@@ -27,7 +27,7 @@ export default async function SpaceLayout({ children, params }: Props) {
 
     return (
       <div className="h-full">
-        <div className="sidebar hidden md:flex h-full w-60 z-20 flex-col fixed inset-y-0">
+        <div className="sidebar hidden md:flex h-full w-60 z-20 flex-col fixed inset-y-0 left-[72px]">
           <SpaceSidebar spaceId={spaceId} />
         </div>
         <main className="h-full md:pl-60 bg-gradient-to-br from-[#7364c0] to-[#02264a] dark:from-[#000C2F] dark:to-[#003666]">
